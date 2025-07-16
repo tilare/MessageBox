@@ -1,0 +1,8 @@
+## Interface: 11200
+## Title: |cffffffff[|cff00ff00MessageBox|cffffffff]|r
+## Author: tilr
+## Version: 1.0
+## Notes: Stores and displays whisper conversation history
+## SavedVariables: MessageBoxSavedData, MessageBoxSettings
+
+MessageBox.xml
