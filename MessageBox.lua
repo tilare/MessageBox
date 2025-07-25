@@ -458,12 +458,30 @@ function MessageBox:CreateNotificationPopup()
     popup:SetMovable(true)
     popup:EnableMouse(true)
     popup:RegisterForDrag("LeftButton")
+	popup:SetScript("OnMouseDown", function()
+    if IsShiftKeyDown() then
+        this.isMoving = true
+        this:StartMoving()
+    else
+        MessageBox:ShowFrame()
+    end
+end)
     popup:SetScript("OnDragStart", function() this:StartMoving() end)
     popup:SetScript("OnDragStop", function()
+    this.isMoving = false
+    this:StopMovingOrSizing()
+    local point, _, relativePoint, x, y = this:GetPoint()
+    MessageBox.settings.notificationPopupPosition = { point = point, relativePoint = relativePoint, x = x, y = y }
+end)
+
+	popup:SetScript("OnMouseUp", function()
+    if this.isMoving then
+        this.isMoving = false
         this:StopMovingOrSizing()
         local point, _, relativePoint, x, y = this:GetPoint()
         MessageBox.settings.notificationPopupPosition = { point = point, relativePoint = relativePoint, x = x, y = y }
-    end)
+    end
+end)
     
     popup:SetNormalTexture("Interface\\ChatFrame\\UI-ChatIcon-Chat-Up")
     popup:SetPushedTexture("Interface\\ChatFrame\\UI-ChatIcon-Chat-Down")
@@ -476,14 +494,11 @@ function MessageBox:CreateNotificationPopup()
     highlight:SetAlpha(0) -- Start hidden
     popup.highlight = highlight
     
-    popup:SetScript("OnClick", function()
-        MessageBox:ShowFrame()
-    end)
-    
     -- Add tooltip scripts
     popup:SetScript("OnEnter", function()
         GameTooltip:SetOwner(this, "ANCHOR_RIGHT")
         GameTooltip:SetText("New Unread Message")
+		GameTooltip:AddLine("Shift+Click to move", 0.7, 0.7, 0.7)
         GameTooltip:Show()
     end)
     
