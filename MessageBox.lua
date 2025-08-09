@@ -434,7 +434,7 @@ function MessageBox:CreateFrame()
     popupNotifyCheckbox:SetPoint("LEFT", deleteAllButton, "RIGHT", 10, 0)
     getglobal(popupNotifyCheckbox:GetName() .. "Text"):SetText("Popup Notifications")
     popupNotifyCheckbox:SetScript("OnClick", function()
-        MessageBox.settings.popupNotificationsEnabled = this:GetChecked()
+        MessageBox.settings.popupNotificationsEnabled = this:GetChecked() == 1
     end)
     MessageBox.popupNotifyCheckbox = popupNotifyCheckbox
 
