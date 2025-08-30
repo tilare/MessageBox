@@ -589,28 +589,48 @@ function MessageBox:UpdateContactList()
 
     if not conversationsCollapsed then
         if MessageBox.conversations then
+            local sortedContacts = {}
             for contact, messages in pairs(MessageBox.conversations) do
                 if messages and table.getn(messages) > 0 then
-                    local contactFrame = MessageBox:GetContactFrame()
-                    contactFrame:SetPoint("TOPLEFT", MessageBox.contactList, "TOPLEFT", 10, yOffset)
-                    local displayText = contact
-                    if MessageBox.unreadCounts[contact] and MessageBox.unreadCounts[contact] > 0 then
-                        displayText = contact .. " |cffff80ff[" .. MessageBox.unreadCounts[contact] .. "]|r"
-                    end
-                    contactFrame.text:SetText(displayText)
-                    local isOnline = MessageBox:IsPlayerOnline(contact)
-                    local statusColor
-                    if isOnline == true then statusColor = {0, 1, 0} elseif isOnline == false then statusColor = {0.5, 0.5, 0.5} else statusColor = {0.5, 0, 0.5} end
-                    contactFrame.statusIcon:SetText("•")
-                    contactFrame.statusIcon:SetTextColor(unpack(statusColor))
-                    contactFrame.text:SetTextColor(1, 1, 1)
-                    contactFrame.contactName = contact
-                    contactFrame:SetScript("OnMouseDown", function() MessageBox:SelectContact(this.contactName) end)
-                    contactFrame:SetScript("OnEnter", function() this.text:SetTextColor(1, 0.82, 0) end)
-                    contactFrame:SetScript("OnLeave", function() this.text:SetTextColor(1, 1, 1) end)
-                    table.insert(MessageBox.activeContactFrames, contactFrame)
-                    yOffset = yOffset - 18
+                    table.insert(sortedContacts, contact)
                 end
+            end
+
+            table.sort(sortedContacts, function(a, b)
+                local convoA = MessageBox.conversations[a]
+                local convoB = MessageBox.conversations[b]
+
+                local lastMessageA = convoA[table.getn(convoA)]
+                local lastMessageB = convoB[table.getn(convoB)]
+
+                if type(lastMessageA.time) ~= "number" then return false end
+                if type(lastMessageB.time) ~= "number" then return true end
+
+                return lastMessageA.time > lastMessageB.time
+            end)
+            
+            for i = 1, table.getn(sortedContacts) do
+                local contact = sortedContacts[i]
+                
+                local contactFrame = MessageBox:GetContactFrame()
+                contactFrame:SetPoint("TOPLEFT", MessageBox.contactList, "TOPLEFT", 10, yOffset)
+                local displayText = contact
+                if MessageBox.unreadCounts[contact] and MessageBox.unreadCounts[contact] > 0 then
+                    displayText = contact .. " |cffff80ff[" .. MessageBox.unreadCounts[contact] .. "]|r"
+                end
+                contactFrame.text:SetText(displayText)
+                local isOnline = MessageBox:IsPlayerOnline(contact)
+                local statusColor
+                if isOnline == true then statusColor = {0, 1, 0} elseif isOnline == false then statusColor = {0.5, 0.5, 0.5} else statusColor = {0.5, 0, 0.5} end
+                contactFrame.statusIcon:SetText("•")
+                contactFrame.statusIcon:SetTextColor(unpack(statusColor))
+                contactFrame.text:SetTextColor(1, 1, 1)
+                contactFrame.contactName = contact
+                contactFrame:SetScript("OnMouseDown", function() MessageBox:SelectContact(this.contactName) end)
+                contactFrame:SetScript("OnEnter", function() this.text:SetTextColor(1, 0.82, 0) end)
+                contactFrame:SetScript("OnLeave", function() this.text:SetTextColor(1, 1, 1) end)
+                table.insert(MessageBox.activeContactFrames, contactFrame)
+                yOffset = yOffset - 18
             end
         end
     end
