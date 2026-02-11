@@ -26,4 +26,19 @@ Modern Messenger-style addon to handle your whispers
 
 
 
-![WoWScrnShot_071625_143254 tga](https://github.com/user-attachments/assets/fbda07c4-af24-42c1-8fa7-b785175e5a21)
+<img width="806" height="586" alt="mb1" src="https://github.com/user-attachments/assets/5480c514-1a30-4a87-9797-1e2c8a84c412" />
+
+<img width="334" height="379" alt="mb2" src="https://github.com/user-attachments/assets/05922eb5-89ed-4b33-9a6c-3c7dc68662d5" />
+
+<img width="805" height="576" alt="mb3" src="https://github.com/user-attachments/assets/0e840bcc-b33a-45fa-8000-004095c6bbbd" />
+
+<img width="432" height="629" alt="mb4" src="https://github.com/user-attachments/assets/36384561-8c42-4b3d-8a93-2be46e5a4f37" />
+
+Classic Theme
+
+<img width="795" height="580" alt="mb5" src="https://github.com/user-attachments/assets/a44b66e0-70ba-4544-aa42-b8527ec0633e" />
+
+
+
+
+
