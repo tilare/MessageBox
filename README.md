@@ -1,19 +1,27 @@
 # MessageBox
-Stores and displays whisper conversation history
+Modern Messenger-style addon to handle your whispers
 
-🌟 **Features:**
+ **Features:**
 
-📜 **Whisper History –** Stores and displays your past whisper conversations so you never lose context.
+ **Whisper History –** Stores and displays your past whisper conversations so you never lose context.
 
-🔔 **Popup Notifications –** Get alerts when a new whisper arrives, even if the window is closed.
+ **Popup Notifications –** Get alerts when a new whisper arrives. 
 
-👥 **Contact List –** View all your contacts in one place, complete with unread message counts.
+ **Contact List –** View all your contacts in one place, complete with unread message counts.
 
-🗣️ **Send Direct Whispers –** Message players straight from the addon's window.
+ **Send Direct Whispers –** Message players straight from the addon's window.
 
-🧹 **Conversation Management –** Delete individual chats or clear your entire history at once.
+ **Modern and Classic Themes -** Toggle the Classic theme for a more Blizzard-style UI.
 
-💬 **Commands -** Open the UI with /messagebox, /mbox, or /mb.
+ **Color Picker -** Customize your UI with a color picker. 
+
+ **Pin System -** Pin a conversation to prevent it from being deleted.
+
+ **Conversation Management –** Delete individual chats or clear your entire history at once.
+
+ 
+
+ **Commands -** Open the UI with /messagebox, /mbox, or /mb.
 
 
 
