@@ -54,11 +54,11 @@ function MessageBox:ApplyTheme()
                 
                 if win.closeBtn then
                     if themeDef.flatButtons then
-                        win.closeBtn:SetWidth(28)
-                        win.closeBtn:SetHeight(28)
-                        win.closeBtn:SetNormalTexture("Interface\\AddOns\\MessageBox\\img\\circle-xmark-outline.tga")
-                        win.closeBtn:SetPushedTexture("Interface\\AddOns\\MessageBox\\img\\circle-xmark-solid.tga")
-                        win.closeBtn:SetHighlightTexture("Interface\\AddOns\\MessageBox\\img\\circle-xmark-solid.tga")
+                        win.closeBtn:SetWidth(18)
+                        win.closeBtn:SetHeight(18)
+                        win.closeBtn:SetNormalTexture("Interface\\AddOns\\MessageBox\\img\\rectangle-xmark-outline.tga")
+                        win.closeBtn:SetPushedTexture("Interface\\AddOns\\MessageBox\\img\\rectangle-xmark-solid.tga")
+                        win.closeBtn:SetHighlightTexture("Interface\\AddOns\\MessageBox\\img\\rectangle-xmark-solid.tga")
                         win.closeBtn:SetAlpha(0.7)
                         win.closeBtn:SetScript("OnEnter", function() this:SetAlpha(1.0) end)
                         win.closeBtn:SetScript("OnLeave", function() this:SetAlpha(0.7) end)
@@ -230,19 +230,18 @@ function MessageBox:ApplyTheme()
 
     if self.closeButton then
         if themeDef.flatButtons then
-            self.closeButton:SetWidth(28)
-            self.closeButton:SetHeight(28)
-            self.closeButton:SetNormalTexture("Interface\\AddOns\\MessageBox\\img\\circle-xmark-outline.tga")
-            self.closeButton:SetPushedTexture("Interface\\AddOns\\MessageBox\\img\\circle-xmark-solid.tga")
-            self.closeButton:SetHighlightTexture("Interface\\AddOns\\MessageBox\\img\\circle-xmark-solid.tga")
-            self.closeButton:SetDisabledTexture("") 
+            self.closeButton:SetWidth(18)
+            self.closeButton:SetHeight(18)
+            self.closeButton:SetNormalTexture("Interface\\AddOns\\MessageBox\\img\\rectangle-xmark-outline.tga")
+            self.closeButton:SetPushedTexture("Interface\\AddOns\\MessageBox\\img\\rectangle-xmark-solid.tga")
+            self.closeButton:SetHighlightTexture("Interface\\AddOns\\MessageBox\\img\\rectangle-xmark-solid.tga")
             
             self.closeButton:SetScript("OnEnter", function() this:SetAlpha(1.0) end)
             self.closeButton:SetScript("OnLeave", function() this:SetAlpha(0.7) end)
             self.closeButton:SetAlpha(0.7)
         else
-            self.closeButton:SetWidth(32)
-            self.closeButton:SetHeight(32)
+            self.closeButton:SetWidth(28)
+            self.closeButton:SetHeight(28)
             self.closeButton:SetNormalTexture("Interface\\Buttons\\UI-Panel-MinimizeButton-Up")
             self.closeButton:SetPushedTexture("Interface\\Buttons\\UI-Panel-MinimizeButton-Down")
             self.closeButton:SetHighlightTexture("Interface\\Buttons\\UI-Panel-MinimizeButton-Highlight")
@@ -263,9 +262,11 @@ function MessageBox:ApplyTheme()
             
             if self.themeFrame.closeBtn then
                 local cBtn = self.themeFrame.closeBtn
-                cBtn:SetNormalTexture("Interface\\AddOns\\MessageBox\\img\\circle-xmark-outline.tga")
-                cBtn:SetPushedTexture("Interface\\AddOns\\MessageBox\\img\\circle-xmark-solid.tga")
-                cBtn:SetHighlightTexture("Interface\\AddOns\\MessageBox\\img\\circle-xmark-solid.tga")
+                cBtn:SetWidth(18)
+                cBtn:SetHeight(18)
+                cBtn:SetNormalTexture("Interface\\AddOns\\MessageBox\\img\\rectangle-xmark-outline.tga")
+                cBtn:SetPushedTexture("Interface\\AddOns\\MessageBox\\img\\rectangle-xmark-solid.tga")
+                cBtn:SetHighlightTexture("Interface\\AddOns\\MessageBox\\img\\rectangle-xmark-solid.tga")
                 cBtn:SetAlpha(0.7)
                 cBtn:SetScript("OnEnter", function() this:SetAlpha(1.0) end)
                 cBtn:SetScript("OnLeave", function() this:SetAlpha(0.7) end)
@@ -301,9 +302,11 @@ function MessageBox:ApplyTheme()
             
             if self.settingsFrame.closeBtn then
                 local cBtn = self.settingsFrame.closeBtn
-                cBtn:SetNormalTexture("Interface\\AddOns\\MessageBox\\img\\circle-xmark-outline.tga")
-                cBtn:SetPushedTexture("Interface\\AddOns\\MessageBox\\img\\circle-xmark-solid.tga")
-                cBtn:SetHighlightTexture("Interface\\AddOns\\MessageBox\\img\\circle-xmark-solid.tga")
+                cBtn:SetWidth(18)
+                cBtn:SetHeight(18)
+                cBtn:SetNormalTexture("Interface\\AddOns\\MessageBox\\img\\rectangle-xmark-outline.tga")
+                cBtn:SetPushedTexture("Interface\\AddOns\\MessageBox\\img\\rectangle-xmark-solid.tga")
+                cBtn:SetHighlightTexture("Interface\\AddOns\\MessageBox\\img\\rectangle-xmark-solid.tga")
                 cBtn:SetAlpha(0.7)
                 cBtn:SetScript("OnEnter", function() this:SetAlpha(1.0) end)
                 cBtn:SetScript("OnLeave", function() this:SetAlpha(0.7) end)
@@ -320,6 +323,8 @@ function MessageBox:ApplyTheme()
 
             if self.settingsFrame.closeBtn then
                 local cBtn = self.settingsFrame.closeBtn
+                cBtn:SetWidth(28)
+                cBtn:SetHeight(28)
                 cBtn:SetNormalTexture("Interface\\Buttons\\UI-Panel-MinimizeButton-Up")
                 cBtn:SetPushedTexture("Interface\\Buttons\\UI-Panel-MinimizeButton-Down")
                 cBtn:SetHighlightTexture("Interface\\Buttons\\UI-Panel-MinimizeButton-Highlight")
