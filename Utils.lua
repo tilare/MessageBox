@@ -25,6 +25,8 @@ function MessageBox:FormatLink(formatter, a1, a2, a3, a4, a5)
 end
 
 function MessageBox:HandleLink(text)
+    if type(text) ~= "string" then return text or "" end
+    
     local URLPattern = self.URLPattern
     local URLFuncs = self.URLFuncs
     text = string.gsub(text, URLPattern.WWW.rx, URLFuncs.WWW)
