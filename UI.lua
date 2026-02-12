@@ -180,6 +180,10 @@ function MessageBox:CreateChatHeader(parent)
                 c.pinned = not c.pinned
                 MessageBox:UpdateChatHeader()
                 MessageBox:UpdateContactList()
+
+                if GameTooltip:IsOwned(this) then
+                    this:GetScript("OnEnter")()
+                end
             end
         end
     end)
@@ -357,11 +361,19 @@ function MessageBox:CreateFrame()
     MessageBox.frame = frame
 
     local title = frame:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
-    title:SetPoint("TOP", frame, "TOP", 0, -15)
+    title:SetPoint("TOP", frame, "TOP", 0, -8)
     title:SetText("MessageBox")
 
-    local closeButton = CreateFrame("Button", nil, frame, "UIPanelCloseButton")
-    closeButton:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -5, -5)
+    local closeButton = CreateFrame("Button", nil, frame)
+    closeButton:SetWidth(18)
+    closeButton:SetHeight(18)
+    closeButton:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -6, -5)
+    closeButton:SetNormalTexture("Interface\\AddOns\\MessageBox\\img\\rectangle-xmark-outline.tga")
+    closeButton:SetPushedTexture("Interface\\AddOns\\MessageBox\\img\\rectangle-xmark-solid.tga")
+    closeButton:SetHighlightTexture("Interface\\AddOns\\MessageBox\\img\\rectangle-xmark-solid.tga")
+    closeButton:SetAlpha(0.7)
+    closeButton:SetScript("OnEnter", function() this:SetAlpha(1.0) end)
+    closeButton:SetScript("OnLeave", function() this:SetAlpha(0.7) end)
     closeButton:SetScript("OnClick", function() MessageBox:HideFrame() end)
     MessageBox.closeButton = closeButton
 
@@ -369,7 +381,7 @@ function MessageBox:CreateFrame()
 
     local contactFrame = CreateFrame("Frame", nil, frame)
     contactFrame:SetWidth(140)
-    contactFrame:SetPoint("TOPLEFT", frame, "TOPLEFT", 15, -35)
+    contactFrame:SetPoint("TOPLEFT", frame, "TOPLEFT", 15, -26)
     contactFrame:SetPoint("BOTTOMLEFT", frame, "BOTTOMLEFT", 15, 40)
     
     MessageBox.contactFrame = contactFrame
@@ -979,7 +991,6 @@ function MessageBox:SelectContact(contact)
     end
 
     MessageBox.selectedContact = contact
-    MessageBox:UpdateChatHeader()
     
     if not MessageBox.conversations[contact] then 
         MessageBox.conversations[contact] = {
@@ -990,6 +1001,8 @@ function MessageBox:SelectContact(contact)
             pinned = false
         }
     end
+    
+    MessageBox:UpdateChatHeader()
     
     if MessageBox.unreadCounts then MessageBox.unreadCounts[contact] = 0 end
     MessageBox:UpdateMinimapBadge()
@@ -1019,6 +1032,14 @@ function MessageBox:UpdateChatHistory(unreadCount, resetToBottom)
     MessageBox.chatHistory:Clear()
     
     local totalMessages = table.getn(c.messages)
+    
+    if totalMessages == 0 then
+        if MessageBox.chatScrollBar then
+            MessageBox.chatScrollBar:Hide()
+        end
+        return
+    end
+    
     local displayLimit = MessageBox.CHAT_DISPLAY_LIMIT or 100
     
     local anchorIndex = totalMessages
@@ -1149,6 +1170,7 @@ function MessageBox:ShowFrame()
     self:HideNotificationPopup() 
     self:UpdateContactList()
     if self.selectedContact then 
+        self:UpdateChatHeader()
         self:UpdateChatHistory() 
     end
     if self.whisperInput then self.whisperInput:SetFocus() end
@@ -1229,7 +1251,7 @@ function MessageBox:OpenDetachedWindow(contact)
     f.contact = contact
     
     local title = f:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
-    title:SetPoint("TOP", 0, -10)
+    title:SetPoint("TOP", 0, -8)
     
     local displayTitle = contact
     local cache = self.playerCache[contact]
@@ -1242,8 +1264,16 @@ function MessageBox:OpenDetachedWindow(contact)
     title:SetText(displayTitle)
     f.title = title
 
-    local closeBtn = CreateFrame("Button", nil, f, "UIPanelCloseButton")
-    closeBtn:SetPoint("TOPRIGHT", -5, -5)
+    local closeBtn = CreateFrame("Button", nil, f)
+    closeBtn:SetWidth(18)
+    closeBtn:SetHeight(18)
+    closeBtn:SetPoint("TOPRIGHT", -6, -5)
+    closeBtn:SetNormalTexture("Interface\\AddOns\\MessageBox\\img\\rectangle-xmark-outline.tga")
+    closeBtn:SetPushedTexture("Interface\\AddOns\\MessageBox\\img\\rectangle-xmark-solid.tga")
+    closeBtn:SetHighlightTexture("Interface\\AddOns\\MessageBox\\img\\rectangle-xmark-solid.tga")
+    closeBtn:SetAlpha(0.7)
+    closeBtn:SetScript("OnEnter", function() this:SetAlpha(1.0) end)
+    closeBtn:SetScript("OnLeave", function() this:SetAlpha(0.7) end)
     closeBtn:SetScript("OnClick", function() 
         this:GetParent():Hide() 
     end)
@@ -1287,7 +1317,7 @@ function MessageBox:OpenDetachedWindow(contact)
     f.editBox = editBox
 
     local history = CreateFrame("ScrollingMessageFrame", nil, f)
-    history:SetPoint("TOPLEFT", f, "TOPLEFT", 15, -30)
+    history:SetPoint("TOPLEFT", f, "TOPLEFT", 15, -26)
     history:SetPoint("BOTTOMRIGHT", inputBackdrop, "TOPRIGHT", -22, 5)
     history:SetFontObject(GameFontNormalSmall)
     history:SetJustifyH("LEFT")
@@ -1301,7 +1331,7 @@ function MessageBox:OpenDetachedWindow(contact)
     sb:SetPoint("TOPLEFT", history, "TOPRIGHT", 2, -14)
     sb:SetPoint("BOTTOMLEFT", history, "BOTTOMRIGHT", 2, 14)
     sb:SetWidth(16)
-    sb:SetMinMaxValues(1, 1) -- Init 1-1 to start safe
+    sb:SetMinMaxValues(1, 1)
     sb:SetValueStep(1)
     
     local track = sb:CreateTexture(nil, "BACKGROUND")
