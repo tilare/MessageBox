@@ -8,7 +8,7 @@ function MessageBox:CreateContactRow(parent)
     frame:EnableMouse(true)
     
     local statusIcon = frame:CreateFontString(nil, "ARTWORK")
-    statusIcon:SetFont("Fonts\\FRIZQT__.TTF", 16)
+    statusIcon:SetFont("Interface\\AddOns\\MessageBox\\font\\OpenSans.ttf", 16)
     statusIcon:SetPoint("LEFT", frame, "LEFT", -5, -2)
     frame.statusIcon = statusIcon
     
@@ -531,7 +531,10 @@ function MessageBox:CreateFrame()
     local chatHistory = CreateFrame("ScrollingMessageFrame", "MessageBoxChatHistory", chatFrame)
     chatHistory:SetPoint("TOPLEFT", MessageBox.chatHeader, "BOTTOMLEFT", 8, -10)
     chatHistory:SetPoint("BOTTOMRIGHT", chatFrame, "BOTTOMRIGHT", -25, 43)
-    chatHistory:SetFontObject(GameFontNormalSmall)
+    
+    chatHistory:SetFont("Interface\\AddOns\\MessageBox\\font\\OpenSans.ttf", MessageBox.settings.chatFontSize or 12, "OUTLINE")
+    chatHistory:SetShadowOffset(1, -1)
+    
     chatHistory:SetJustifyH("LEFT")
     chatHistory:SetMaxLines(500)
     chatHistory:SetFading(false)
@@ -1319,7 +1322,10 @@ function MessageBox:OpenDetachedWindow(contact)
     local history = CreateFrame("ScrollingMessageFrame", nil, f)
     history:SetPoint("TOPLEFT", f, "TOPLEFT", 15, -26)
     history:SetPoint("BOTTOMRIGHT", inputBackdrop, "TOPRIGHT", -22, 5)
-    history:SetFontObject(GameFontNormalSmall)
+    
+    history:SetFont("Interface\\AddOns\\MessageBox\\font\\OpenSans.ttf", MessageBox.settings.chatFontSize or 12, "OUTLINE")
+    history:SetShadowOffset(1, -1)
+    
     history:SetJustifyH("LEFT")
     history:SetMaxLines(500)
     history:SetFading(false)
@@ -1417,7 +1423,6 @@ function MessageBox:OpenDetachedWindow(contact)
 
     self.detachedWindows[contact] = f
     
-    -- Init contents
     local c = self.conversations[contact]
     if c and c.messages then
         local total = table.getn(c.messages)
@@ -1430,4 +1435,25 @@ function MessageBox:OpenDetachedWindow(contact)
     end
 
     self:ApplyTheme()
+end
+
+function MessageBox:ApplyChatFontSize()
+    local size = self.settings.chatFontSize or 12
+    local font = "Interface\\AddOns\\MessageBox\\font\\OpenSans.ttf"
+    
+    if self.chatHistory then
+        self.chatHistory:SetFont(font, size, "OUTLINE")
+        self.chatHistory:SetShadowOffset(1, -1)
+        self:UpdateChatHistory()
+    end
+    
+    if self.detachedWindows then
+        for contact, win in pairs(self.detachedWindows) do
+            if win.history then
+                win.history:SetFont(font, size, "OUTLINE")
+                win.history:SetShadowOffset(1, -1)
+                if win.UpdateDisplay then win:UpdateDisplay() end -- Refresh content
+            end
+        end
+    end
 end
