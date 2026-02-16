@@ -96,6 +96,7 @@ function MessageBox:OnEvent(event)
             showMinimapButton = true,
             interceptWhispers = true,
             backgroundWho = true,
+            chatFontSize = 10,
             
             mainColor = {0.08, 0.08, 0.1, 0.95},
             panelColor = {0.15, 0.15, 0.17, 0.6},
