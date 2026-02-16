@@ -170,7 +170,7 @@ function MessageBox:ShowSettingsFrame()
         
         local f = CreateFrame("Frame", "MessageBoxSettingsFrame", UIParent)
         f:SetWidth(200)
-        f:SetHeight(260)
+        f:SetHeight(290)
         
         if self.settingsButton and self.settingsButton:IsVisible() then
              f:SetPoint("BOTTOMLEFT", self.settingsButton, "TOPLEFT", 0, 5)
@@ -259,6 +259,28 @@ function MessageBox:ShowSettingsFrame()
             themeCheck:SetChecked(not MessageBox.settings.modernTheme)
         end)
         f.checks["theme"] = themeCheck
+        
+        -- Font Size Slider
+        local fontSlider = CreateFrame("Slider", "MessageBoxFontSlider", f, "OptionsSliderTemplate")
+        fontSlider:SetWidth(160)
+        fontSlider:SetHeight(16)
+        fontSlider:SetPoint("TOPLEFT", 20, yStart + (yStep*6) - 10)
+        fontSlider:SetMinMaxValues(8, 24)
+        fontSlider:SetValueStep(1)
+        
+        getglobal(fontSlider:GetName().."Low"):SetText("8")
+        getglobal(fontSlider:GetName().."High"):SetText("24")
+        getglobal(fontSlider:GetName().."Text"):SetText("Chat Font Size: " .. (MessageBox.settings.chatFontSize or 12))
+        
+        fontSlider:SetScript("OnValueChanged", function()
+             local val = math.floor(arg1)
+             MessageBox.settings.chatFontSize = val
+             getglobal(this:GetName().."Text"):SetText("Chat Font Size: " .. val)
+             MessageBox:ApplyChatFontSize()
+        end)
+        
+        fontSlider:SetValue(MessageBox.settings.chatFontSize or 12)
+        f.fontSlider = fontSlider
 
         local close = CreateFrame("Button", nil, f, "UIPanelCloseButton")
         close:SetPoint("TOPRIGHT", -5, -5)
@@ -978,7 +1000,10 @@ function MessageBox:OpenDetachedWindow(contact)
     local history = CreateFrame("ScrollingMessageFrame", nil, f)
     history:SetPoint("TOPLEFT", f, "TOPLEFT", 15, -30)
     history:SetPoint("BOTTOMRIGHT", inputBackdrop, "TOPRIGHT", -22, 5)
-    history:SetFontObject(GameFontNormalSmall)
+    
+    history:SetFont("Fonts\\FRIZQT__.TTF", MessageBox.settings.chatFontSize or 12, "OUTLINE")
+    history:SetShadowOffset(1, -1)
+    
     history:SetJustifyH("LEFT")
     history:SetMaxLines(500)
     history:SetFading(false)
