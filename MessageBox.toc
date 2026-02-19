@@ -1,7 +1,7 @@
 ## Interface: 11200
 ## Title: |cff3cb7f0Message|cffffffffBox
 ## Author: tilr
-## Version: 2.1
+## Version: 2.1.1
 ## Notes: Stores and displays whisper conversation history
 ## SavedVariables: MessageBoxSavedData
 ## SavedVariablesPerCharacter: MessageBoxDB, MessageBoxSettings
