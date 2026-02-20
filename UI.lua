@@ -50,7 +50,7 @@ function MessageBox:EnsureRows(scrollChild, rowTable, count)
     local current = table.getn(rowTable)
     if current < count then
         for i = current + 1, count do
-            local row = self:CreateContactRow(MessageBox.contactFrame)
+            local row = self:CreateContactRow(MessageBox.clipChild or MessageBox.contactFrame)
             table.insert(rowTable, row)
         end
     end
@@ -223,18 +223,18 @@ function MessageBox:CreateChatHeader(parent)
     return header
 end
 
--- This only exists in GlueXML so we need to copy it over
 local CLASS_ICON_TCOORDS = {
-	["WARRIOR"]	= {0, 0.25, 0, 0.25},
-	["MAGE"]	= {0.25, 0.49609375, 0, 0.25},
-	["ROGUE"]	= {0.49609375, 0.7421875, 0, 0.25},
-	["DRUID"]	= {0.7421875, 0.98828125, 0, 0.25},
-	["HUNTER"]	= {0, 0.25, 0.25, 0.5},
-	["SHAMAN"]	= {0.25, 0.49609375, 0.25, 0.5},
-	["PRIEST"]	= {0.49609375, 0.7421875, 0.25, 0.5},
-	["WARLOCK"]	= {0.7421875, 0.98828125, 0.25, 0.5},
-	["PALADIN"]	= {0, 0.25, 0.5, 0.75}
+    ["WARRIOR"] = {0, 0.25, 0, 0.25},
+    ["MAGE"]    = {0.25, 0.49609375, 0, 0.25},
+    ["ROGUE"]   = {0.49609375, 0.7421875, 0, 0.25},
+    ["DRUID"]   = {0.7421875, 0.98828125, 0, 0.25},
+    ["HUNTER"]  = {0, 0.25, 0.25, 0.5},
+    ["SHAMAN"]  = {0.25, 0.49609375, 0.25, 0.5},
+    ["PRIEST"]  = {0.49609375, 0.7421875, 0.25, 0.5},
+    ["WARLOCK"] = {0.7421875, 0.98828125, 0.25, 0.5},
+    ["PALADIN"] = {0, 0.25, 0.5, 0.75}
 }
+
 function MessageBox:UpdateChatHeader()
     if not self.chatHeader then return end
     
@@ -397,6 +397,15 @@ function MessageBox:CreateFrame()
     
     MessageBox.contactFrame = contactFrame
 
+    local clipFrame = CreateFrame("ScrollFrame", nil, contactFrame)
+    clipFrame:SetPoint("TOPLEFT", contactFrame, "TOPLEFT", 0, -32) 
+    clipFrame:SetPoint("BOTTOMRIGHT", contactFrame, "BOTTOMRIGHT", 0, 10) 
+    local clipChild = CreateFrame("Frame", nil, clipFrame)
+    clipChild:SetWidth(140)
+    clipChild:SetHeight(2000)
+    clipFrame:SetScrollChild(clipChild)
+    MessageBox.clipChild = clipChild
+
     local searchBox = CreateFrame("EditBox", "MessageBoxContactSearch", contactFrame, "InputBoxTemplate")
     searchBox:SetWidth(120)
     searchBox:SetHeight(20)
@@ -447,13 +456,13 @@ function MessageBox:CreateFrame()
 
     local friendsScroll = CreateFrame("ScrollFrame", "MessageBoxFriendsScroll", contactFrame, "FauxScrollFrameTemplate")
     friendsScroll:SetScript("OnVerticalScroll", function() 
-        FauxScrollFrame_OnVerticalScroll(16, function() MessageBox:UpdateScrollViews() end) 
+        FauxScrollFrame_OnVerticalScroll(1, function() MessageBox:UpdateScrollViews() end) 
     end)
     MessageBox.friendsScroll = friendsScroll
     
     local convosScroll = CreateFrame("ScrollFrame", "MessageBoxConversationsScroll", contactFrame, "FauxScrollFrameTemplate")
     convosScroll:SetScript("OnVerticalScroll", function() 
-        FauxScrollFrame_OnVerticalScroll(16, function() MessageBox:UpdateScrollViews() end) 
+        FauxScrollFrame_OnVerticalScroll(1, function() MessageBox:UpdateScrollViews() end) 
     end)
     MessageBox.conversationsScroll = convosScroll
 
@@ -789,10 +798,11 @@ function MessageBox:UpdateScrollViews()
     local ROW_HEIGHT = 16
     local SEARCH_AREA_HEIGHT = 30
     local HEADER_HEIGHT = 20
-    local PADDING = 10
+    local BOTTOM_PADDING = 10
+    local MIDDLE_PADDING = 18
     
-    local containerHeight = MessageBox.contactFrame:GetHeight()
-    local availableHeight = containerHeight - SEARCH_AREA_HEIGHT - (HEADER_HEIGHT * 2) - (PADDING * 2)
+    local containerHeight = MessageBox.frame:GetHeight() - 66
+    local availableHeight = containerHeight - SEARCH_AREA_HEIGHT - (HEADER_HEIGHT * 2) - BOTTOM_PADDING - MIDDLE_PADDING
     
     MessageBox.friendsHeader.frame:ClearAllPoints()
     MessageBox.friendsHeader.frame:SetPoint("TOPLEFT", MessageBox.contactFrame, "TOPLEFT", 5, -SEARCH_AREA_HEIGHT)
@@ -814,7 +824,7 @@ function MessageBox:UpdateScrollViews()
         else
             friendsHeight = splitHeight
         end
-        convosHeight = availableHeight - friendsHeight - PADDING
+        convosHeight = availableHeight - friendsHeight
 
     elseif not friendsCollapsed and conversationsCollapsed then
         friendsHeight = availableHeight
@@ -843,9 +853,9 @@ function MessageBox:UpdateScrollViews()
 
     MessageBox.conversationsHeader.frame:ClearAllPoints()
     if friendsCollapsed then
-        MessageBox.conversationsHeader.frame:SetPoint("TOPLEFT", MessageBox.friendsHeader.frame, "BOTTOMLEFT", 0, -PADDING)
+        MessageBox.conversationsHeader.frame:SetPoint("TOPLEFT", MessageBox.friendsHeader.frame, "BOTTOMLEFT", 0, -MIDDLE_PADDING)
     else
-        MessageBox.conversationsHeader.frame:SetPoint("TOPLEFT", MessageBox.friendsScroll, "BOTTOMLEFT", 0, -PADDING)
+        MessageBox.conversationsHeader.frame:SetPoint("TOPLEFT", MessageBox.friendsScroll, "BOTTOMLEFT", 0, -MIDDLE_PADDING)
     end
     MessageBox.conversationsHeader.frame:SetPoint("RIGHT", MessageBox.contactFrame, "RIGHT", -5, 0)
     MessageBox.conversationsHeader.frame:Show()
@@ -863,20 +873,22 @@ function MessageBox:UpdateScrollViews()
         MessageBox.conversationsScroll:ClearAllPoints()
         MessageBox.conversationsScroll:SetPoint("TOPLEFT", MessageBox.conversationsHeader.frame, "BOTTOMLEFT", 0, 0)
         MessageBox.conversationsScroll:SetPoint("RIGHT", MessageBox.contactFrame, "RIGHT", -32, 0)
-        MessageBox.conversationsScroll:SetPoint("BOTTOM", MessageBox.contactFrame, "BOTTOM", 0, PADDING)
+        MessageBox.conversationsScroll:SetPoint("BOTTOM", MessageBox.contactFrame, "BOTTOM", 0, BOTTOM_PADDING)
     end
 
     if not friendsCollapsed then
         local listSize = table.getn(MessageBox.visibleFriends)
-        local numRows = math.ceil(friendsHeight / 16)
+        local displayRows = math.ceil(friendsHeight / 16)
+        local scrollRows = math.floor(friendsHeight / 16)
+        if scrollRows < 1 then scrollRows = 1 end
         
-        MessageBox:EnsureRows(MessageBox.contactFrame, MessageBox.friendRows, numRows + 1)
-        FauxScrollFrame_Update(MessageBoxFriendsScroll, listSize, numRows, 16)
+        MessageBox:EnsureRows(MessageBox.clipChild or MessageBox.contactFrame, MessageBox.friendRows, displayRows)
+        FauxScrollFrame_Update(MessageBoxFriendsScroll, listSize, scrollRows, 1)
         
         local offset = FauxScrollFrame_GetOffset(MessageBoxFriendsScroll)
         for i = 1, table.getn(MessageBox.friendRows) do
             local row = MessageBox.friendRows[i]
-            if i <= numRows then
+            if i <= displayRows then
                 local dataIndex = offset + i
                 if dataIndex <= listSize then
                     local data = MessageBox.visibleFriends[dataIndex]
@@ -921,18 +933,17 @@ function MessageBox:UpdateScrollViews()
     if not conversationsCollapsed then
         local listSize = table.getn(MessageBox.visibleConversations)
         
-        local scrollHeight = MessageBox.conversationsScroll:GetHeight()
-        if scrollHeight < 16 then scrollHeight = convosHeight end
-
-        local numRows = math.ceil(scrollHeight / 16)
+        local displayRows = math.ceil(convosHeight / 16)
+        local scrollRows = math.floor(convosHeight / 16)
+        if scrollRows < 1 then scrollRows = 1 end
         
-        MessageBox:EnsureRows(MessageBox.contactFrame, MessageBox.conversationRows, numRows + 1)
-        FauxScrollFrame_Update(MessageBoxConversationsScroll, listSize, numRows, 16)
+        MessageBox:EnsureRows(MessageBox.clipChild or MessageBox.contactFrame, MessageBox.conversationRows, displayRows)
+        FauxScrollFrame_Update(MessageBoxConversationsScroll, listSize, scrollRows, 1)
         
         local offset = FauxScrollFrame_GetOffset(MessageBoxConversationsScroll)
         for i = 1, table.getn(MessageBox.conversationRows) do
             local row = MessageBox.conversationRows[i]
-            if i <= numRows then
+            if i <= displayRows then
                 local dataIndex = offset + i
                 if dataIndex <= listSize then
                     local data = MessageBox.visibleConversations[dataIndex]
@@ -1038,10 +1049,21 @@ function MessageBox:UpdateChatHistory(unreadCount, resetToBottom)
         end
     end
 
-    if not MessageBox.selectedContact or not MessageBox.chatHistory then return end
+    if not MessageBox.chatHistory then return end
+    
+    if not MessageBox.selectedContact then 
+        MessageBox.chatHistory:Clear()
+        if MessageBox.chatScrollBar then MessageBox.chatScrollBar:Hide() end
+        return 
+    end
     
     local c = self.conversations[self.selectedContact]
-    if not c or not c.messages then return end
+    
+    if not c or not c.messages then 
+        MessageBox.chatHistory:Clear()
+        if MessageBox.chatScrollBar then MessageBox.chatScrollBar:Hide() end
+        return 
+    end
     
     MessageBox.chatHistory:Clear()
     
@@ -1183,6 +1205,8 @@ function MessageBox:ShowFrame()
     self.frame:Show()
     self:HideNotificationPopup() 
     self:UpdateContactList()
+    self:UpdateChatHeader()
+
     if self.selectedContact then 
         self:UpdateChatHeader()
         self:UpdateChatHistory() 
@@ -1463,7 +1487,7 @@ function MessageBox:ApplyChatFontSize()
             if win.history then
                 win.history:SetFont(font, size, "OUTLINE")
                 win.history:SetShadowOffset(1, -1)
-                if win.UpdateDisplay then win:UpdateDisplay() end -- Refresh content
+                if win.UpdateDisplay then win:UpdateDisplay() end
             end
         end
     end
