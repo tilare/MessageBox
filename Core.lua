@@ -134,7 +134,7 @@ MessageBox.textures = {
     partyIcon           = "Interface\\WorldMap\\WorldMapPartyIcon",
 }
 
--- Conversation constructor (single source of truth for the data shape)
+-- Conversation constructor
 function MessageBox:NewConversation()
     return {
         messages = {},
@@ -146,7 +146,7 @@ function MessageBox:NewConversation()
     }
 end
 
--- Centralized default settings (single source of truth)
+-- Default settings
 MessageBox.defaultSettings = {
     friendsListCollapsed = false,
     conversationsListCollapsed = false,
@@ -253,4 +253,5 @@ MessageBox.themes = {
         },
         flatButtons = true
     }
+
 }
