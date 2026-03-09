@@ -1,7 +1,7 @@
 -- Theme.lua
 -- Theme logic, Apply colors
 
--- Helper: style a close/dismiss button for modern or classic theme
+-- button for modern or classic theme
 function MessageBox:SkinCloseButton(btn, isModern, size)
     if not btn then return end
     size = size or (isModern and 18 or 28)
@@ -24,7 +24,7 @@ function MessageBox:SkinCloseButton(btn, isModern, size)
     end
 end
 
--- Helper: style a small icon button's highlight for modern or classic theme
+-- small icon button's highlight for modern or classic theme
 function MessageBox:SkinIconButton(btn, isModern, selectionColor)
     if not btn then return end
     if isModern then
@@ -236,7 +236,6 @@ function MessageBox:ApplyTheme()
                 self.searchBarFrame.searchInput:SetBackdropBorderColor(unpack(themeDef.panelBorderColor))
             end
             
-            -- Modern arrow buttons with custom textures
             if self.searchBarFrame.prevBtn then
                 local btn = self.searchBarFrame.prevBtn
                 btn:SetNormalTexture(MessageBox.textures.caretUp)
@@ -643,4 +642,5 @@ function MessageBox:ShowThemeFrame()
     
     if self.themeBlocker then self.themeBlocker:Show() end
     self.themeFrame:Show()
+
 end
