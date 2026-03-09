@@ -184,7 +184,7 @@ function MessageBox:CreateChatHeader(parent)
     metaTopText:SetTextColor(0.7, 0.7, 0.7)
     header.metaTopText = metaTopText
 
-    -- Search button (created before pin so pin can anchor to it)
+    -- Search button
     local searchBtn = CreateFrame("Button", nil, header)
     searchBtn:SetWidth(16)
     searchBtn:SetHeight(16)
@@ -212,7 +212,7 @@ function MessageBox:CreateChatHeader(parent)
     end)
     header.searchBtn = searchBtn
 
-    -- Pin button (to the left of search)
+    -- Pin button
     local pinBtn = CreateFrame("Button", nil, header)
     pinBtn:SetWidth(16)
     pinBtn:SetHeight(16)
@@ -324,7 +324,7 @@ function MessageBox:UpdateChatHeader()
     
     self.chatHeader.nameText:SetText(displayTitle)
 
-    -- AFK/DND status display (next to name)
+    -- AFK/DND status display
     if cache and cache.status and cache.status ~= "" then
         self.chatHeader.guildText:SetText("|cffaaaaaa" .. cache.status .. "|r")
         self.chatHeader.guildText:Show()
@@ -337,7 +337,6 @@ function MessageBox:UpdateChatHeader()
     local coords = {0, 0.25, 0, 0.25} 
 
     if cache then
-        -- Guild on info line with level and zone
         if cache.guild and cache.guild ~= "" then
             infoString = "<" .. cache.guild .. "> • "
         end
@@ -445,9 +444,6 @@ function MessageBox:CreateFrame()
         MessageBox:UpdateContactList()
     end)
 
-    -- Clip region: rows are parented to clipChild so they're visually clipped
-    -- to the contactFrame bounds. The ScrollFrame itself is not scrolled
-    -- programmatically; FauxScrollFrames handle virtual scrolling separately.
     local clipFrame = CreateFrame("ScrollFrame", nil, contactFrame)
     clipFrame:SetPoint("TOPLEFT", contactFrame, "TOPLEFT", 0, -32) 
     clipFrame:SetPoint("BOTTOMRIGHT", contactFrame, "BOTTOMRIGHT", 0, 10) 
@@ -793,7 +789,7 @@ function MessageBox:UpdateContactList()
     
     MessageBox.visibleFriends = {}
     MessageBox.onlineStatus = {}
-    MessageBox.friendSet = {} -- fast lookup for IsFriend
+    MessageBox.friendSet = {}
     for i = 1, GetNumFriends() do
         local name, level, class, area, connected, status = GetFriendInfo(i)
         if name then
@@ -858,7 +854,6 @@ function MessageBox:UpdateContactList()
         local sortedContacts = MessageBox.cachedSortedContacts or {}
         for i = 1, table.getn(sortedContacts) do
             local contact = sortedContacts[i]
-            -- Verify conversation still exists (may have been deleted)
             if MessageBox.conversations[contact] then
                 local matchesSearch = (searchQuery == "") or string.find(string.lower(contact), searchQuery)
                 
@@ -1208,7 +1203,7 @@ function MessageBox:SendWhisper()
         return 
     end
 
-    -- WoW 1.12 has a 255-character limit on chat messages
+    -- 255-character limit on chat messages
     if string.len(message) > 255 then
         MessageBox:AddSystemMessage(MessageBox.selectedContact, "Message too long (" .. string.len(message) .. "/255 characters). Please shorten it.", true)
         return
@@ -1329,7 +1324,6 @@ function MessageBox:OpenSearchBar()
             local count = table.getn(MessageBox.chatSearchResults)
             if count > 0 then
                 MessageBox.chatSearchCurrentIndex = count
-                -- Jump to last (most recent) match
                 local msgIndex = MessageBox.chatSearchResults[count]
                 if MessageBox.chatScrollBar then
                     MessageBox.chatScrollBar.isUpdating = true
@@ -1453,4 +1447,5 @@ function MessageBox:ApplyChatFontSize()
             end
         end
     end
+
 end
