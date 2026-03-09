@@ -1,6 +1,46 @@
 -- Theme.lua
 -- Theme logic, Apply colors
 
+-- Helper: style a close/dismiss button for modern or classic theme
+function MessageBox:SkinCloseButton(btn, isModern, size)
+    if not btn then return end
+    size = size or (isModern and 18 or 28)
+    btn:SetWidth(size)
+    btn:SetHeight(size)
+    if isModern then
+        btn:SetNormalTexture(MessageBox.textures.closeOutline)
+        btn:SetPushedTexture(MessageBox.textures.closeSolid)
+        btn:SetHighlightTexture(MessageBox.textures.closeSolid)
+        btn:SetAlpha(0.7)
+        btn:SetScript("OnEnter", function() this:SetAlpha(1.0) end)
+        btn:SetScript("OnLeave", function() this:SetAlpha(0.7) end)
+    else
+        btn:SetNormalTexture(MessageBox.textures.minimizeBtnUp)
+        btn:SetPushedTexture(MessageBox.textures.minimizeBtnDown)
+        btn:SetHighlightTexture(MessageBox.textures.minimizeBtnHi)
+        btn:SetAlpha(1.0)
+        btn:SetScript("OnEnter", nil)
+        btn:SetScript("OnLeave", nil)
+    end
+end
+
+-- Helper: style a small icon button's highlight for modern or classic theme
+function MessageBox:SkinIconButton(btn, isModern, selectionColor)
+    if not btn then return end
+    if isModern then
+        btn:SetHighlightTexture(MessageBox.textures.listHighlight)
+        local hl = btn:GetHighlightTexture()
+        if hl then
+            hl:SetVertexColor(unpack(selectionColor))
+            hl:SetAlpha(0.4)
+        end
+    else
+        btn:SetHighlightTexture(MessageBox.textures.minimizeBtnHi)
+        local hl = btn:GetHighlightTexture()
+        if hl then hl:SetVertexColor(1, 1, 1, 1) end
+    end
+end
+
 function MessageBox:UpdateThemeFrameSwatches()
     if self.themeFrame and self.themeFrame.swatches then
         for _, swatch in ipairs(self.themeFrame.swatches) do
@@ -17,12 +57,13 @@ function MessageBox:ApplyTheme()
     local mainColor, panelColor, inputColor, buttonColor, textColor, selectionColor
     
     if self.settings.modernTheme then
-        mainColor = self.settings.mainColor or {0.08, 0.08, 0.1, 0.95}
-        panelColor = self.settings.panelColor or {0.15, 0.15, 0.17, 0.6}
-        inputColor = self.settings.inputColor or {0.1, 0.1, 0.1, 0.8}
-        buttonColor = self.settings.buttonColor or {0.2, 0.2, 0.2, 1}
-        textColor = self.settings.textColor or {1, 1, 1, 1}
-        selectionColor = self.settings.selectionColor or {0.8, 0.8, 0.8, 0.4}
+        local d = MessageBox.defaultSettings
+        mainColor = self.settings.mainColor or d.mainColor
+        panelColor = self.settings.panelColor or d.panelColor
+        inputColor = self.settings.inputColor or d.inputColor
+        buttonColor = self.settings.buttonColor or d.buttonColor
+        textColor = self.settings.textColor or d.textColor
+        selectionColor = self.settings.selectionColor or d.selectionColor
     else
         mainColor = self.themes.classic.mainColor
         panelColor = self.themes.classic.panelColor
@@ -53,25 +94,7 @@ function MessageBox:ApplyTheme()
                 end
                 
                 if win.closeBtn then
-                    if themeDef.flatButtons then
-                        win.closeBtn:SetWidth(18)
-                        win.closeBtn:SetHeight(18)
-                        win.closeBtn:SetNormalTexture("Interface\\AddOns\\MessageBox\\img\\rectangle-xmark-outline.tga")
-                        win.closeBtn:SetPushedTexture("Interface\\AddOns\\MessageBox\\img\\rectangle-xmark-solid.tga")
-                        win.closeBtn:SetHighlightTexture("Interface\\AddOns\\MessageBox\\img\\rectangle-xmark-solid.tga")
-                        win.closeBtn:SetAlpha(0.7)
-                        win.closeBtn:SetScript("OnEnter", function() this:SetAlpha(1.0) end)
-                        win.closeBtn:SetScript("OnLeave", function() this:SetAlpha(0.7) end)
-                    else
-                        win.closeBtn:SetWidth(32)
-                        win.closeBtn:SetHeight(32)
-                        win.closeBtn:SetNormalTexture("Interface\\Buttons\\UI-Panel-MinimizeButton-Up")
-                        win.closeBtn:SetPushedTexture("Interface\\Buttons\\UI-Panel-MinimizeButton-Down")
-                        win.closeBtn:SetHighlightTexture("Interface\\Buttons\\UI-Panel-MinimizeButton-Highlight")
-                        win.closeBtn:SetAlpha(1.0)
-                        win.closeBtn:SetScript("OnEnter", nil)
-                        win.closeBtn:SetScript("OnLeave", nil)
-                    end
+                    MessageBox:SkinCloseButton(win.closeBtn, themeDef.flatButtons, themeDef.flatButtons and 18 or 32)
                 end
                 
                 if win.inputBackdrop then
@@ -93,6 +116,12 @@ function MessageBox:ApplyTheme()
     for _, region in ipairs(regions) do
         if region:GetObjectType() == "FontString" and region:GetText() == "MessageBox" then
             region:SetTextColor(unpack(textColor))
+            region:ClearAllPoints()
+            if self.settings.modernTheme then
+                region:SetPoint("TOP", self.frame, "TOP", 0, -5)
+            else
+                region:SetPoint("TOP", self.frame, "TOP", 0, -12)
+            end
             break
         end
     end
@@ -154,7 +183,7 @@ function MessageBox:ApplyTheme()
             if themeDef.flatButtons then
                 btn:SetNormalTexture("")
                 btn:SetPushedTexture("")
-                btn:SetHighlightTexture("Interface\\Buttons\\UI-Listbox-Highlight2")
+                btn:SetHighlightTexture(MessageBox.textures.listHighlight)
                 
                 btn:SetBackdrop(themeDef.panelBackdrop)
                 btn:SetBackdropColor(unpack(buttonColor))
@@ -168,9 +197,9 @@ function MessageBox:ApplyTheme()
                     hl:SetAlpha(0.4) 
                 end
             else
-                btn:SetNormalTexture("Interface\\Buttons\\UI-Panel-Button-Up")
-                btn:SetPushedTexture("Interface\\Buttons\\UI-Panel-Button-Down")
-                btn:SetHighlightTexture("Interface\\Buttons\\UI-Panel-MinimizeButton-Highlight")
+                btn:SetNormalTexture(MessageBox.textures.panelBtnUp)
+                btn:SetPushedTexture(MessageBox.textures.panelBtnDown)
+                btn:SetHighlightTexture(MessageBox.textures.minimizeBtnHi)
                 btn:SetBackdrop(nil)
                 btn.flatBg = false
                 
@@ -185,71 +214,132 @@ function MessageBox:ApplyTheme()
         end
     end
 
-    if self.themeButton then
-        if themeDef.flatButtons then
-            local hl = self.themeButton:GetHighlightTexture()
-            if hl then
-                 hl:SetVertexColor(unpack(selectionColor))
-                 hl:SetAlpha(0.4)
-            end
-        else
-            local hl = self.themeButton:GetHighlightTexture()
-            if hl then hl:SetVertexColor(1, 1, 1, 1) end
-        end
+    MessageBox:SkinIconButton(self.themeButton, themeDef.flatButtons, selectionColor)
+
+    MessageBox:SkinIconButton(self.bellButton, themeDef.flatButtons, selectionColor)
+
+    if self.chatHeader then
+        MessageBox:SkinIconButton(self.chatHeader.pinBtn, themeDef.flatButtons, selectionColor)
+        MessageBox:SkinIconButton(self.chatHeader.searchBtn, themeDef.flatButtons, selectionColor)
     end
 
-    if self.bellButton then
-        if themeDef.flatButtons then
-            self.bellButton:SetHighlightTexture("Interface\\Buttons\\UI-Listbox-Highlight2")
-            local hl = self.bellButton:GetHighlightTexture()
-            if hl then 
-                hl:SetVertexColor(unpack(selectionColor))
-                hl:SetAlpha(0.4)
+    -- Theme search bar
+    if self.searchBarFrame then
+        if self.settings.modernTheme then
+            self.searchBarFrame:SetBackdrop(themeDef.panelBackdrop)
+            self.searchBarFrame:SetBackdropColor(unpack(panelColor))
+            self.searchBarFrame:SetBackdropBorderColor(unpack(themeDef.panelBorderColor))
+            
+            if self.searchBarFrame.searchInput then
+                self.searchBarFrame.searchInput:SetBackdrop(themeDef.inputBackdrop)
+                self.searchBarFrame.searchInput:SetBackdropColor(unpack(inputColor))
+                self.searchBarFrame.searchInput:SetBackdropBorderColor(unpack(themeDef.panelBorderColor))
             end
+            
+            -- Modern arrow buttons with custom textures
+            if self.searchBarFrame.prevBtn then
+                local btn = self.searchBarFrame.prevBtn
+                btn:SetNormalTexture(MessageBox.textures.caretUp)
+                btn:SetPushedTexture(MessageBox.textures.caretUp)
+                btn:SetHighlightTexture(MessageBox.textures.caretUpHi)
+                btn:SetBackdrop(nil)
+                btn:SetAlpha(0.7)
+                btn:SetScript("OnEnter", function()
+                    this:SetAlpha(1.0)
+                    GameTooltip:SetOwner(this, "ANCHOR_RIGHT")
+                    GameTooltip:SetText("Previous Match")
+                    GameTooltip:Show()
+                end)
+                btn:SetScript("OnLeave", function()
+                    this:SetAlpha(0.7)
+                    GameTooltip:Hide()
+                end)
+                if btn.arrowText then btn.arrowText:Hide() end
+            end
+            
+            if self.searchBarFrame.nextBtn then
+                local btn = self.searchBarFrame.nextBtn
+                btn:SetNormalTexture(MessageBox.textures.caretDown)
+                btn:SetPushedTexture(MessageBox.textures.caretDown)
+                btn:SetHighlightTexture(MessageBox.textures.caretDownHi)
+                btn:SetBackdrop(nil)
+                btn:SetAlpha(0.7)
+                btn:SetScript("OnEnter", function()
+                    this:SetAlpha(1.0)
+                    GameTooltip:SetOwner(this, "ANCHOR_RIGHT")
+                    GameTooltip:SetText("Next Match")
+                    GameTooltip:Show()
+                end)
+                btn:SetScript("OnLeave", function()
+                    this:SetAlpha(0.7)
+                    GameTooltip:Hide()
+                end)
+                if btn.arrowText then btn.arrowText:Hide() end
+            end
+            
+            -- Modern close button
+            MessageBox:SkinCloseButton(self.searchBarFrame.closeBtn, true, 14)
         else
-            self.bellButton:SetHighlightTexture("Interface\\Buttons\\UI-Panel-MinimizeButton-Highlight")
-            local hl = self.bellButton:GetHighlightTexture()
-            if hl then hl:SetVertexColor(1, 1, 1, 1) end
-        end
-    end
-
-    if self.chatHeader and self.chatHeader.pinBtn then
-        if themeDef.flatButtons then
-             self.chatHeader.pinBtn:SetHighlightTexture("Interface\\Buttons\\UI-Listbox-Highlight2")
-             local hl = self.chatHeader.pinBtn:GetHighlightTexture()
-             if hl then 
-                 hl:SetVertexColor(unpack(selectionColor))
-                 hl:SetAlpha(0.4)
-             end
-        else
-             self.chatHeader.pinBtn:SetHighlightTexture("Interface\\Buttons\\UI-Panel-MinimizeButton-Highlight")
-             local hl = self.chatHeader.pinBtn:GetHighlightTexture()
-             if hl then hl:SetVertexColor(1, 1, 1, 1) end
+            self.searchBarFrame:SetBackdrop({
+                bgFile = MessageBox.textures.tooltipBg,
+                tile = true, tileSize = 16,
+                insets = {left = 0, right = 0, top = 0, bottom = 0}
+            })
+            self.searchBarFrame:SetBackdropColor(0, 0, 0, 0.5)
+            
+            if self.searchBarFrame.searchInput then
+                self.searchBarFrame.searchInput:SetBackdrop({
+                    bgFile = MessageBox.textures.tooltipBg,
+                    edgeFile = MessageBox.textures.tooltipBorder,
+                    tile = true, tileSize = 16, edgeSize = 12,
+                    insets = {left = 3, right = 3, top = 3, bottom = 3}
+                })
+                self.searchBarFrame.searchInput:SetBackdropColor(0, 0, 0, 0.6)
+                self.searchBarFrame.searchInput:SetBackdropBorderColor(1, 1, 1, 1)
+            end
+            
+            -- Classic scroll arrow buttons
+            if self.searchBarFrame.prevBtn then
+                local btn = self.searchBarFrame.prevBtn
+                btn:SetNormalTexture(MessageBox.textures.scrollUpUp)
+                btn:SetPushedTexture(MessageBox.textures.scrollUpDown)
+                btn:SetHighlightTexture(MessageBox.textures.scrollUpHi)
+                btn:SetBackdrop(nil)
+                btn:SetAlpha(1.0)
+                btn:SetScript("OnEnter", function()
+                    GameTooltip:SetOwner(this, "ANCHOR_RIGHT")
+                    GameTooltip:SetText("Previous Match")
+                    GameTooltip:Show()
+                end)
+                btn:SetScript("OnLeave", function() GameTooltip:Hide() end)
+                if btn.arrowText then btn.arrowText:Hide() end
+            end
+            
+            if self.searchBarFrame.nextBtn then
+                local btn = self.searchBarFrame.nextBtn
+                btn:SetNormalTexture(MessageBox.textures.scrollDownUp)
+                btn:SetPushedTexture(MessageBox.textures.scrollDownDown)
+                btn:SetHighlightTexture(MessageBox.textures.scrollDownHi)
+                btn:SetBackdrop(nil)
+                btn:SetAlpha(1.0)
+                btn:SetScript("OnEnter", function()
+                    GameTooltip:SetOwner(this, "ANCHOR_RIGHT")
+                    GameTooltip:SetText("Next Match")
+                    GameTooltip:Show()
+                end)
+                btn:SetScript("OnLeave", function() GameTooltip:Hide() end)
+                if btn.arrowText then btn.arrowText:Hide() end
+            end
+            
+            -- Classic close button
+            MessageBox:SkinCloseButton(self.searchBarFrame.closeBtn, false, 18)
         end
     end
 
     if self.closeButton then
-        if themeDef.flatButtons then
-            self.closeButton:SetWidth(18)
-            self.closeButton:SetHeight(18)
-            self.closeButton:SetNormalTexture("Interface\\AddOns\\MessageBox\\img\\rectangle-xmark-outline.tga")
-            self.closeButton:SetPushedTexture("Interface\\AddOns\\MessageBox\\img\\rectangle-xmark-solid.tga")
-            self.closeButton:SetHighlightTexture("Interface\\AddOns\\MessageBox\\img\\rectangle-xmark-solid.tga")
-            
-            self.closeButton:SetScript("OnEnter", function() this:SetAlpha(1.0) end)
-            self.closeButton:SetScript("OnLeave", function() this:SetAlpha(0.7) end)
-            self.closeButton:SetAlpha(0.7)
-        else
-            self.closeButton:SetWidth(28)
-            self.closeButton:SetHeight(28)
-            self.closeButton:SetNormalTexture("Interface\\Buttons\\UI-Panel-MinimizeButton-Up")
-            self.closeButton:SetPushedTexture("Interface\\Buttons\\UI-Panel-MinimizeButton-Down")
-            self.closeButton:SetHighlightTexture("Interface\\Buttons\\UI-Panel-MinimizeButton-Highlight")
-            self.closeButton:SetDisabledTexture("Interface\\Buttons\\UI-Panel-MinimizeButton-Disabled")
-            
-            self.closeButton:SetScript("OnEnter", nil)
-            self.closeButton:SetScript("OnLeave", nil)
-            self.closeButton:SetAlpha(1.0)
+        MessageBox:SkinCloseButton(self.closeButton, themeDef.flatButtons)
+        if not themeDef.flatButtons then
+            self.closeButton:SetDisabledTexture(MessageBox.textures.minimizeBtnDisabled)
         end
     end
 
@@ -260,36 +350,18 @@ function MessageBox:ApplyTheme()
             self.themeFrame:SetBackdropColor(unpack(mainColor))
             self.themeFrame:SetBackdropBorderColor(unpack(themeDef.mainBorderColor))
             
-            if self.themeFrame.closeBtn then
-                local cBtn = self.themeFrame.closeBtn
-                cBtn:SetWidth(18)
-                cBtn:SetHeight(18)
-                cBtn:SetNormalTexture("Interface\\AddOns\\MessageBox\\img\\rectangle-xmark-outline.tga")
-                cBtn:SetPushedTexture("Interface\\AddOns\\MessageBox\\img\\rectangle-xmark-solid.tga")
-                cBtn:SetHighlightTexture("Interface\\AddOns\\MessageBox\\img\\rectangle-xmark-solid.tga")
-                cBtn:SetAlpha(0.7)
-                cBtn:SetScript("OnEnter", function() this:SetAlpha(1.0) end)
-                cBtn:SetScript("OnLeave", function() this:SetAlpha(0.7) end)
-            end
+            MessageBox:SkinCloseButton(self.themeFrame.closeBtn, true)
         else
             self.themeFrame:SetBackdrop({
-                bgFile = "Interface\\DialogFrame\\UI-DialogBox-Background",
-                edgeFile = "Interface\\DialogFrame\\UI-DialogBox-Border",
+                bgFile = MessageBox.textures.dialogBg,
+                edgeFile = MessageBox.textures.dialogBorder,
                 tile = true, tileSize = 32, edgeSize = 32,
                 insets = { left = 11, right = 12, top = 12, bottom = 11 }
             })
             self.themeFrame:SetBackdropColor(1,1,1,1)
             self.themeFrame:SetBackdropBorderColor(1,1,1,1)
 
-            if self.themeFrame.closeBtn then
-                local cBtn = self.themeFrame.closeBtn
-                cBtn:SetNormalTexture("Interface\\Buttons\\UI-Panel-MinimizeButton-Up")
-                cBtn:SetPushedTexture("Interface\\Buttons\\UI-Panel-MinimizeButton-Down")
-                cBtn:SetHighlightTexture("Interface\\Buttons\\UI-Panel-MinimizeButton-Highlight")
-                cBtn:SetAlpha(1.0)
-                cBtn:SetScript("OnEnter", nil)
-                cBtn:SetScript("OnLeave", nil)
-            end
+            MessageBox:SkinCloseButton(self.themeFrame.closeBtn, false)
         end
     end
 
@@ -300,38 +372,18 @@ function MessageBox:ApplyTheme()
             self.settingsFrame:SetBackdropColor(unpack(mainColor))
             self.settingsFrame:SetBackdropBorderColor(unpack(themeDef.mainBorderColor))
             
-            if self.settingsFrame.closeBtn then
-                local cBtn = self.settingsFrame.closeBtn
-                cBtn:SetWidth(18)
-                cBtn:SetHeight(18)
-                cBtn:SetNormalTexture("Interface\\AddOns\\MessageBox\\img\\rectangle-xmark-outline.tga")
-                cBtn:SetPushedTexture("Interface\\AddOns\\MessageBox\\img\\rectangle-xmark-solid.tga")
-                cBtn:SetHighlightTexture("Interface\\AddOns\\MessageBox\\img\\rectangle-xmark-solid.tga")
-                cBtn:SetAlpha(0.7)
-                cBtn:SetScript("OnEnter", function() this:SetAlpha(1.0) end)
-                cBtn:SetScript("OnLeave", function() this:SetAlpha(0.7) end)
-            end
+            MessageBox:SkinCloseButton(self.settingsFrame.closeBtn, true)
         else
             self.settingsFrame:SetBackdrop({
-                bgFile = "Interface\\DialogFrame\\UI-DialogBox-Background",
-                edgeFile = "Interface\\DialogFrame\\UI-DialogBox-Border",
+                bgFile = MessageBox.textures.dialogBg,
+                edgeFile = MessageBox.textures.dialogBorder,
                 tile = true, tileSize = 32, edgeSize = 32,
                 insets = { left = 11, right = 12, top = 12, bottom = 11 }
             })
             self.settingsFrame:SetBackdropColor(1,1,1,1)
             self.settingsFrame:SetBackdropBorderColor(1,1,1,1)
 
-            if self.settingsFrame.closeBtn then
-                local cBtn = self.settingsFrame.closeBtn
-                cBtn:SetWidth(28)
-                cBtn:SetHeight(28)
-                cBtn:SetNormalTexture("Interface\\Buttons\\UI-Panel-MinimizeButton-Up")
-                cBtn:SetPushedTexture("Interface\\Buttons\\UI-Panel-MinimizeButton-Down")
-                cBtn:SetHighlightTexture("Interface\\Buttons\\UI-Panel-MinimizeButton-Highlight")
-                cBtn:SetAlpha(1.0)
-                cBtn:SetScript("OnEnter", nil)
-                cBtn:SetScript("OnLeave", nil)
-            end
+            MessageBox:SkinCloseButton(self.settingsFrame.closeBtn, false)
         end
     end
 
@@ -356,9 +408,9 @@ function MessageBox:ApplyTheme()
                     plus.text:SetTextColor(unpack(textColor))
                 end
             else
-                plus:SetNormalTexture("Interface\\Buttons\\UI-PlusButton-Up")
-                plus:SetPushedTexture("Interface\\Buttons\\UI-PlusButton-Down")
-                plus:SetHighlightTexture("Interface\\Buttons\\UI-PlusButton-Highlight")
+                plus:SetNormalTexture(MessageBox.textures.plusUp)
+                plus:SetPushedTexture(MessageBox.textures.plusDown)
+                plus:SetHighlightTexture(MessageBox.textures.plusHi)
                 plus:SetBackdrop(nil)
                 plus.flatBg = false
                 if plus.text then plus.text:Hide() end
@@ -378,9 +430,9 @@ function MessageBox:ApplyTheme()
                     minus.text:SetTextColor(unpack(textColor))
                 end
             else
-                minus:SetNormalTexture("Interface\\Buttons\\UI-MinusButton-Up")
-                minus:SetPushedTexture("Interface\\Buttons\\UI-MinusButton-Down")
-                minus:SetHighlightTexture("Interface\\Buttons\\UI-MinusButton-Highlight")
+                minus:SetNormalTexture(MessageBox.textures.minusUp)
+                minus:SetPushedTexture(MessageBox.textures.minusDown)
+                minus:SetHighlightTexture(MessageBox.textures.minusHi)
                 minus:SetBackdrop(nil)
                 minus.flatBg = false
                 if minus.text then minus.text:Hide() end
@@ -473,14 +525,7 @@ end
 
 function MessageBox:ShowThemeFrame()
     if not self.themeFrame then
-        local blocker = CreateFrame("Frame", "MessageBoxThemeBlocker", self.frame)
-        blocker:SetAllPoints(self.frame)
-        blocker:SetFrameStrata("DIALOG")
-        blocker:EnableMouse(true) 
-        blocker:SetBackdrop({bgFile = "Interface\\Buttons\\WHITE8x8"})
-        blocker:SetBackdropColor(0, 0, 0, 0.4)
-        blocker:Hide()
-        self.themeBlocker = blocker
+        self:EnsureThemeBlocker()
         
         local f = CreateFrame("Frame", "MessageBoxThemeFrame", UIParent)
         f:SetWidth(200)
@@ -506,8 +551,8 @@ function MessageBox:ShowThemeFrame()
         end)
         
         f:SetBackdrop({
-            bgFile = "Interface\\DialogFrame\\UI-DialogBox-Background",
-            edgeFile = "Interface\\DialogFrame\\UI-DialogBox-Border",
+            bgFile = MessageBox.textures.dialogBg,
+            edgeFile = MessageBox.textures.dialogBorder,
             tile = true, tileSize = 32, edgeSize = 32,
             insets = { left = 11, right = 12, top = 12, bottom = 11 }
         })
@@ -530,7 +575,7 @@ function MessageBox:ShowThemeFrame()
             swatch.bg = bg
             
             local border = swatch:CreateTexture(nil, "OVERLAY")
-            border:SetTexture("Interface\\Buttons\\UI-Quickslot2")
+            border:SetTexture(MessageBox.textures.quickslot)
             border:SetWidth(34)
             border:SetHeight(34)
             border:SetPoint("CENTER", 0, 0)
@@ -569,14 +614,12 @@ function MessageBox:ShowThemeFrame()
         resetBtn:SetPoint("BOTTOM", 0, 15)
         resetBtn:SetText("Reset Colors")
         resetBtn:SetScript("OnClick", function()
-            -- Modern defaults
-            MessageBox.settings.mainColor = {0.08, 0.08, 0.1, 0.95}
-            MessageBox.settings.panelColor = {0.15, 0.15, 0.17, 0.6}
-            MessageBox.settings.inputColor = {0.1, 0.1, 0.1, 0.8}
-            MessageBox.settings.highlightColor = {0.8, 0.8, 0.8, 1}
-            MessageBox.settings.buttonColor = {0.2, 0.2, 0.2, 1}
-            MessageBox.settings.textColor = {1, 1, 1, 1}
-            MessageBox.settings.selectionColor = {0.8, 0.8, 0.8, 0.4}
+            local colorKeys = {"mainColor", "panelColor", "inputColor", "highlightColor", "buttonColor", "textColor", "selectionColor"}
+            for _, key in ipairs(colorKeys) do
+                if MessageBox.defaultSettings[key] then
+                    MessageBox.settings[key] = {unpack(MessageBox.defaultSettings[key])}
+                end
+            end
             
             MessageBox:ApplyTheme()
             MessageBox:SkinScrollbar(MessageBoxFriendsScroll)

@@ -2,7 +2,6 @@
 -- Main events, Slash commands, Init hooks
 
 function MessageBox:OnLoad()
-    MessageBox.transientMessages = nil 
 
     MessageBox.eventFrame:RegisterEvent("CHAT_MSG_WHISPER")
     MessageBox.eventFrame:RegisterEvent("CHAT_MSG_WHISPER_INFORM")
@@ -10,6 +9,8 @@ function MessageBox:OnLoad()
     MessageBox.eventFrame:RegisterEvent("FRIENDLIST_UPDATE")
     MessageBox.eventFrame:RegisterEvent("CHAT_MSG_SYSTEM")
     MessageBox.eventFrame:RegisterEvent("WHO_LIST_UPDATE")
+    MessageBox.eventFrame:RegisterEvent("CHAT_MSG_AFK")
+    MessageBox.eventFrame:RegisterEvent("CHAT_MSG_DND")
     
     SLASH_MESSAGEBOX1 = "/messagebox"
     SLASH_MESSAGEBOX2 = "/mb"
@@ -24,8 +25,11 @@ function MessageBox:OnLoad()
             elseif cmd == "clear" then
                 MessageBox:ClearWhoQueue()
                 return
-            elseif cmd == "stress" then
-                MessageBox:RunStressTest()
+            elseif string.find(cmd, "^stress") then
+                local _, _, arg1, arg2 = string.find(msg, "^%S+%s+(%d+)%s+(%d+)")
+                local numContacts = tonumber(arg1) or 1000
+                local numMessages = tonumber(arg2) or 1000
+                MessageBox:RunStressTest(numContacts, numMessages)
                 return
             end
         end
@@ -34,7 +38,11 @@ function MessageBox:OnLoad()
 
     MessageBox:SetupHooks()
     
+    MessageBox.whoElapsed = 0
     MessageBox.eventFrame:SetScript("OnUpdate", function()
+        MessageBox.whoElapsed = MessageBox.whoElapsed + arg1
+        if MessageBox.whoElapsed < 1 then return end
+        MessageBox.whoElapsed = 0
         MessageBox:ProcessWhoQueue()
     end)
 
@@ -59,13 +67,7 @@ function MessageBox:OnEvent(event)
             
             for contact, messages in pairs(oldConversations) do
                 if type(messages) == "table" and table.getn(messages) > 0 then
-                    local soa = {
-                        messages = {},
-                        times = {},
-                        outgoing = {},
-                        system = {},
-                        pinned = false 
-                    }
+                    local soa = MessageBox:NewConversation()
                     
                     for i, msg in ipairs(messages) do
                         table.insert(soa.messages, msg.message or "")
@@ -73,6 +75,7 @@ function MessageBox:OnEvent(event)
                         table.insert(soa.outgoing, msg.outgoing or false)
                         table.insert(soa.system, msg.system or false)
                     end
+                    soa.count = table.getn(soa.messages)
                     
                     MessageBoxDB[contact] = soa
                 end
@@ -84,30 +87,13 @@ function MessageBox:OnEvent(event)
 
         MessageBox.conversations = MessageBoxDB
 
-        local defaultSettings = {
-            friendsListCollapsed = false,
-            conversationsListCollapsed = false,
-            unreadCounts = {},
-            popupNotificationsEnabled = true,
-            notificationPopupPosition = { point = "CENTER", relativePoint = "CENTER", x = 0, y = -200 },
-            modernTheme = true,
-            hideOffline = false,
-            use12HourFormat = false,
-            showMinimapButton = true,
-            interceptWhispers = true,
-            backgroundWho = true,
-            chatFontSize = 10,
-            
-            mainColor = {0.08, 0.08, 0.1, 0.95},
-            panelColor = {0.15, 0.15, 0.17, 0.6},
-            inputColor = {0.1, 0.1, 0.1, 0.8},
-            highlightColor = {0.8, 0.8, 0.8, 1}, 
-        }
-        
         if not MessageBoxSettings then
-            MessageBoxSettings = defaultSettings
+            MessageBoxSettings = {}
+            for key, value in pairs(MessageBox.defaultSettings) do
+                MessageBoxSettings[key] = value
+            end
         else
-            for key, value in pairs(defaultSettings) do
+            for key, value in pairs(MessageBox.defaultSettings) do
                 if MessageBoxSettings[key] == nil then
                     MessageBoxSettings[key] = value
                 end
@@ -134,7 +120,7 @@ function MessageBox:OnEvent(event)
 
         local convo = MessageBox.conversations[recipient]
         if convo and convo.messages then
-            local count = table.getn(convo.messages)
+            local count = MessageBox:GetCount(convo)
             if count > 0 then
                 if convo.outgoing[count] and convo.messages[count] == message then
                     return
@@ -150,8 +136,8 @@ function MessageBox:OnEvent(event)
         
         if playerName then
             local convo = MessageBox.conversations[playerName]
-            if convo and convo.messages and table.getn(convo.messages) > 0 then
-                local count = table.getn(convo.messages)
+            if convo and convo.messages and MessageBox:GetCount(convo) > 0 then
+                local count = MessageBox:GetCount(convo)
                 if convo.outgoing[count] then
                     MessageBox:RemoveLastMessage(playerName)
                     MessageBox:AddSystemMessage(playerName, playerName .. " is offline.", true)
@@ -161,35 +147,56 @@ function MessageBox:OnEvent(event)
 
     elseif event == "FRIENDLIST_UPDATE" then
         if MessageBox.frame and MessageBox.frame:IsVisible() then
-            MessageBox:UpdateContactList()
+            MessageBox:MarkContactListDirty()
         end
         
     elseif event == "WHO_LIST_UPDATE" then
         MessageBox:HandleWhoResult()
+    
+    elseif event == "CHAT_MSG_AFK" then
+        local message = arg1
+        local sender = arg2
+        if sender and MessageBox.conversations[sender] then
+            if not MessageBox.playerCache[sender] then MessageBox.playerCache[sender] = {} end
+            MessageBox.playerCache[sender].status = "<AFK>"
+            MessageBox:AddSystemMessage(sender, sender .. " is AFK: " .. (message or "Away from Keyboard"))
+            if MessageBox.frame and MessageBox.frame:IsVisible() and MessageBox.selectedContact == sender then
+                MessageBox:UpdateChatHeader()
+            end
+        end
+    
+    elseif event == "CHAT_MSG_DND" then
+        local message = arg1
+        local sender = arg2
+        if sender and MessageBox.conversations[sender] then
+            if not MessageBox.playerCache[sender] then MessageBox.playerCache[sender] = {} end
+            MessageBox.playerCache[sender].status = "<DND>"
+            MessageBox:AddSystemMessage(sender, sender .. " is DND: " .. (message or "Do not Disturb"))
+            if MessageBox.frame and MessageBox.frame:IsVisible() and MessageBox.selectedContact == sender then
+                MessageBox:UpdateChatHeader()
+            end
+        end
     end
 end
 
 -- Debug
 
-function MessageBox:RunStressTest()
-    DEFAULT_CHAT_FRAME:AddMessage("|cff3cb7f0Message|rBox: Generating 1000 dummies with 1000 messages each. Screen may freeze momentarily...")
+function MessageBox:RunStressTest(numContacts, numMessages)
+    numContacts = numContacts or 1000
+    numMessages = numMessages or 1000
     
-    local baseTime = time() - (1000 * 60)
+    DEFAULT_CHAT_FRAME:AddMessage("|cff3cb7f0Message|rBox: Generating " .. numContacts .. " dummies with " .. numMessages .. " messages each. Screen may freeze momentarily...")
     
-    for k = 1, 1000 do
+    local baseTime = time() - (numMessages * 60)
+    
+    for k = 1, numContacts do
         local name = "Dummy" .. k
         
-        MessageBox.conversations[name] = {
-            messages = {},
-            times = {},
-            outgoing = {},
-            system = {},
-            pinned = false
-        }
+        MessageBox.conversations[name] = MessageBox:NewConversation()
         
         local c = MessageBox.conversations[name]
         
-        for i = 1, 1000 do
+        for i = 1, numMessages do
             local isOut = (math.mod(i, 2) == 0)
             local txt = "Stress test message #" .. i .. " - This is a somewhat long line of text to ensure wrapping works correctly in the scrolling frame."
             
@@ -198,12 +205,14 @@ function MessageBox:RunStressTest()
             table.insert(c.outgoing, isOut)
             table.insert(c.system, false)
         end
+        c.count = numMessages
         
         if math.mod(k, 10) == 0 then
             MessageBox.unreadCounts[name] = 5
         end
     end
     
+    MessageBox.conversationOrderDirty = true
     MessageBox:UpdateContactList()
     MessageBox:UpdateMinimapBadge()
     DEFAULT_CHAT_FRAME:AddMessage("|cff3cb7f0Message|rBox: Stress test data populated. Use the Delete All button to clear them later.")

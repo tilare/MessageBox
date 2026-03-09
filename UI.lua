@@ -8,7 +8,7 @@ function MessageBox:CreateContactRow(parent)
     frame:EnableMouse(true)
     
     local statusIcon = frame:CreateFontString(nil, "ARTWORK")
-    statusIcon:SetFont("Interface\\AddOns\\MessageBox\\font\\OpenSans.ttf", 16)
+    statusIcon:SetFont(MessageBox.fonts.openSans, 16)
     statusIcon:SetPoint("LEFT", frame, "LEFT", -5, -2)
     frame.statusIcon = statusIcon
     
@@ -20,7 +20,7 @@ function MessageBox:CreateContactRow(parent)
     pinIcon:SetWidth(10)
     pinIcon:SetHeight(10)
     pinIcon:SetPoint("RIGHT", frame, "RIGHT", -5, 0)
-    pinIcon:SetTexture("Interface\\AddOns\\MessageBox\\img\\pin.tga")
+    pinIcon:SetTexture(MessageBox.textures.pin)
     pinIcon:Hide()
     frame.pinIcon = pinIcon
     
@@ -38,7 +38,7 @@ function MessageBox:CreateContactRow(parent)
     end)
     frame:SetScript("OnLeave", function() 
         this.isHovered = false
-        local c = MessageBox.settings.textColor or {1, 1, 1, 1}
+        local c = MessageBox.settings.textColor or MessageBox.defaultSettings.textColor
         this.text:SetTextColor(unpack(c)) 
     end)
     frame:Hide()
@@ -98,7 +98,7 @@ function MessageBox:CreateHeaderFrame(parent, onClickCallback)
     
     header:SetScript("OnLeave", function()
         if this.text then
-            local c = MessageBox.settings.textColor or {1, 1, 1, 1}
+            local c = MessageBox.settings.textColor or MessageBox.defaultSettings.textColor
             this.text:SetTextColor(unpack(c))
         end
     end)
@@ -118,7 +118,7 @@ function MessageBox:CreateChatHeader(parent)
     header:SetPoint("TOPRIGHT", parent, "TOPRIGHT", 0, 0)
     
     header:SetBackdrop({
-        bgFile = "Interface\\Tooltips\\UI-Tooltip-Background",
+        bgFile = MessageBox.textures.tooltipBg,
         tile = true, tileSize = 16,
         insets = {left = 0, right = 0, top = 0, bottom = -1}
     })
@@ -130,8 +130,8 @@ function MessageBox:CreateChatHeader(parent)
     avatarBtn:SetPoint("LEFT", header, "LEFT", 8, 0)
     
     avatarBtn:SetBackdrop({
-        bgFile = "Interface\\Buttons\\WHITE8x8", 
-        edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
+        bgFile = MessageBox.textures.white8x8, 
+        edgeFile = MessageBox.textures.tooltipBorder,
         tile = false, tileSize = 16, edgeSize = 12,
         insets = { left = 3, right = 3, top = 3, bottom = 3 }
     })
@@ -165,18 +165,66 @@ function MessageBox:CreateChatHeader(parent)
     nameText:SetPoint("TOPLEFT", avatarBtn, "TOPRIGHT", 10, -4)
     nameText:SetJustifyH("LEFT")
     header.nameText = nameText
+
+    local guildText = header:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    guildText:SetPoint("LEFT", nameText, "RIGHT", 6, 0)
+    guildText:SetJustifyH("LEFT")
+    guildText:SetTextColor(0.5, 0.5, 0.5)
+    header.guildText = guildText
+
+    local infoText = header:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    infoText:SetPoint("TOPLEFT", nameText, "BOTTOMLEFT", 0, -2)
+    infoText:SetJustifyH("LEFT")
+    infoText:SetTextColor(0.8, 0.8, 0.8)
+    header.infoText = infoText
+
+    local metaTopText = header:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    metaTopText:SetPoint("TOPRIGHT", header, "TOPRIGHT", -10, -8)
+    metaTopText:SetJustifyH("RIGHT")
+    metaTopText:SetTextColor(0.7, 0.7, 0.7)
+    header.metaTopText = metaTopText
+
+    -- Search button (created before pin so pin can anchor to it)
+    local searchBtn = CreateFrame("Button", nil, header)
+    searchBtn:SetWidth(16)
+    searchBtn:SetHeight(16)
+    searchBtn:SetPoint("BOTTOMRIGHT", header, "BOTTOMRIGHT", -8, 2)
+    searchBtn:SetNormalTexture(MessageBox.textures.search)
+    searchBtn:SetHighlightTexture(MessageBox.textures.minimizeBtnHi)
+    searchBtn:SetAlpha(0.7)
     
+    searchBtn:SetScript("OnEnter", function()
+        this:SetAlpha(1.0)
+        GameTooltip:SetOwner(this, "ANCHOR_RIGHT")
+        GameTooltip:SetText("Search Chat Log")
+        GameTooltip:Show()
+    end)
+    searchBtn:SetScript("OnLeave", function()
+        this:SetAlpha(0.7)
+        GameTooltip:Hide()
+    end)
+    searchBtn:SetScript("OnClick", function()
+        if MessageBox.searchBarFrame and MessageBox.searchBarFrame:IsVisible() then
+            MessageBox:CloseSearchBar()
+        else
+            MessageBox:OpenSearchBar()
+        end
+    end)
+    header.searchBtn = searchBtn
+
+    -- Pin button (to the left of search)
     local pinBtn = CreateFrame("Button", nil, header)
     pinBtn:SetWidth(16)
     pinBtn:SetHeight(16)
-    pinBtn:SetPoint("LEFT", nameText, "RIGHT", 5, 0)
-    pinBtn:SetHighlightTexture("Interface\\Buttons\\UI-Panel-MinimizeButton-Highlight")
+    pinBtn:SetPoint("RIGHT", searchBtn, "LEFT", -5, 0)
+    pinBtn:SetHighlightTexture(MessageBox.textures.minimizeBtnHi)
     
     pinBtn:SetScript("OnClick", function()
         if MessageBox.selectedContact then
             local c = MessageBox.conversations[MessageBox.selectedContact]
             if c then
                 c.pinned = not c.pinned
+                MessageBox.conversationOrderDirty = true
                 MessageBox:UpdateChatHeader()
                 MessageBox:UpdateContactList()
 
@@ -200,24 +248,6 @@ function MessageBox:CreateChatHeader(parent)
     end)
     pinBtn:SetScript("OnLeave", function() GameTooltip:Hide() end)
     header.pinBtn = pinBtn
-
-    local infoText = header:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-    infoText:SetPoint("TOPLEFT", nameText, "BOTTOMLEFT", 0, -2)
-    infoText:SetJustifyH("LEFT")
-    infoText:SetTextColor(0.8, 0.8, 0.8)
-    header.infoText = infoText
-
-    local metaTopText = header:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-    metaTopText:SetPoint("TOPRIGHT", header, "TOPRIGHT", -10, -8)
-    metaTopText:SetJustifyH("RIGHT")
-    metaTopText:SetTextColor(0.7, 0.7, 0.7)
-    header.metaTopText = metaTopText
-
-    local metaBottomText = header:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-    metaBottomText:SetPoint("TOPRIGHT", metaTopText, "BOTTOMRIGHT", 0, -12)
-    metaBottomText:SetJustifyH("RIGHT")
-    metaBottomText:SetTextColor(0.5, 0.5, 0.5)
-    header.metaBottomText = metaBottomText
 
     MessageBox.chatHeader = header
     return header
@@ -243,24 +273,26 @@ function MessageBox:UpdateChatHeader()
         self.chatHeader.infoText:SetText("Select a contact")
         self.chatHeader.avatarBtn:Hide()
         self.chatHeader.pinBtn:Hide()
+        self.chatHeader.searchBtn:Hide()
+        self.chatHeader.guildText:Hide()
         self.chatHeader.metaTopText:Hide()
-        self.chatHeader.metaBottomText:Hide()
         return
     end
 
     self.chatHeader.avatarBtn:Show()
     self.chatHeader.pinBtn:Show()
+    self.chatHeader.searchBtn:Show()
+    self.chatHeader.guildText:Show()
     self.chatHeader.metaTopText:Show()
-    self.chatHeader.metaBottomText:Show()
 
     local name = self.selectedContact
     local displayTitle = name
     
     local c = self.conversations[name]
     if c and c.pinned then
-        self.chatHeader.pinBtn:SetNormalTexture("Interface\\AddOns\\MessageBox\\img\\pin-slash.tga")
+        self.chatHeader.pinBtn:SetNormalTexture(MessageBox.textures.pinSlash)
     else
-        self.chatHeader.pinBtn:SetNormalTexture("Interface\\AddOns\\MessageBox\\img\\pin.tga")
+        self.chatHeader.pinBtn:SetNormalTexture(MessageBox.textures.pin)
     end
     
     local cache = self.playerCache[name]
@@ -272,8 +304,10 @@ function MessageBox:UpdateChatHeader()
                  cache = {
                      level = fLevel,
                      class = fClass,
+                     classUpper = fClass and string.upper(fClass) or nil,
                      zone = fArea,
-                     status = fStatus
+                     status = fStatus,
+                     guild = nil
                  }
                  self.playerCache[name] = cache
                  break
@@ -282,63 +316,65 @@ function MessageBox:UpdateChatHeader()
     end
 
     if cache and cache.class then
-        local color = RAID_CLASS_COLORS[string.upper(cache.class)]
+        local color = RAID_CLASS_COLORS[cache.classUpper]
         if color then
             displayTitle = string.format("|cff%02x%02x%02x%s|r", color.r*255, color.g*255, color.b*255, name)
         end
     end
-
-    if cache and cache.status and cache.status ~= "" then
-        displayTitle = displayTitle .. " |cffaaaaaa" .. cache.status .. "|r"
-    end
     
     self.chatHeader.nameText:SetText(displayTitle)
+
+    -- AFK/DND status display (next to name)
+    if cache and cache.status and cache.status ~= "" then
+        self.chatHeader.guildText:SetText("|cffaaaaaa" .. cache.status .. "|r")
+        self.chatHeader.guildText:Show()
+    else
+        self.chatHeader.guildText:SetText("")
+        self.chatHeader.guildText:Hide()
+    end
 
     local infoString = ""
     local coords = {0, 0.25, 0, 0.25} 
 
     if cache then
+        -- Guild on info line with level and zone
+        if cache.guild and cache.guild ~= "" then
+            infoString = "<" .. cache.guild .. "> • "
+        end
+        
         if cache.level and cache.level > 0 then
-            infoString = "Level " .. cache.level
+            infoString = infoString .. "Level " .. cache.level
         else
-            infoString = "Unknown Level"
+            infoString = infoString .. "Unknown Level"
         end
         
         if cache.zone and cache.zone ~= "" and cache.zone ~= "Unknown" then
              infoString = infoString .. " • " .. cache.zone
         end
 
-        if cache.class and CLASS_ICON_TCOORDS[string.upper(cache.class)] then
-            coords = CLASS_ICON_TCOORDS[string.upper(cache.class)]
-            self.chatHeader.avatarBtn.icon:SetTexture("Interface\\Glues\\CharacterCreate\\UI-CharacterCreate-Classes")
+        if cache.class and CLASS_ICON_TCOORDS[cache.classUpper] then
+            coords = CLASS_ICON_TCOORDS[cache.classUpper]
+            self.chatHeader.avatarBtn.icon:SetTexture(MessageBox.textures.classIcons)
             self.chatHeader.avatarBtn.icon:SetTexCoord(unpack(coords))
         else
-             self.chatHeader.avatarBtn.icon:SetTexture("Interface\\Icons\\INV_Misc_QuestionMark")
+             self.chatHeader.avatarBtn.icon:SetTexture(MessageBox.textures.iconQuestion)
              self.chatHeader.avatarBtn.icon:SetTexCoord(0.05, 0.95, 0.05, 0.95)
         end
     else
         infoString = "Offline or Unknown"
-        self.chatHeader.avatarBtn.icon:SetTexture("Interface\\Icons\\INV_Misc_QuestionMark")
+        self.chatHeader.avatarBtn.icon:SetTexture(MessageBox.textures.iconQuestion)
         self.chatHeader.avatarBtn.icon:SetTexCoord(0.05, 0.95, 0.05, 0.95)
     end
     
     self.chatHeader.infoText:SetText(infoString)
 
     local msgCount = 0
-    local lastDateStr = "Never"
     
     if c and c.messages then
-        msgCount = table.getn(c.messages)
-        if msgCount > 0 then
-            local lastTime = c.times[msgCount]
-            if lastTime and type(lastTime) == "number" then
-                lastDateStr = date("%d/%m/%y", lastTime)
-            end
-        end
+        msgCount = MessageBox:GetCount(c)
     end
     
     self.chatHeader.metaTopText:SetText("Total Messages: " .. msgCount)
-    self.chatHeader.metaBottomText:SetText("Last Messaged: " .. lastDateStr)
 end
 
 function MessageBox:CreateFrame()
@@ -347,16 +383,17 @@ function MessageBox:CreateFrame()
     end
 
     local frame = CreateFrame("Frame", "MessageBoxFrame", UIParent)
-    frame:SetWidth(480)
-    frame:SetHeight(350)
+    local L = MessageBox.layout
+    frame:SetWidth(L.MAIN_WIDTH)
+    frame:SetHeight(L.MAIN_HEIGHT)
     frame:SetPoint("CENTER", UIParent, "CENTER", 0, 0)
     frame:SetFrameStrata("MEDIUM")
     frame:SetToplevel(true)
     frame:SetMovable(true)
     frame:EnableMouse(true)
     frame:SetResizable(true)
-    frame:SetMinResize(480, 350)
-    frame:SetMaxResize(1000, 800)
+    frame:SetMinResize(L.MAIN_WIDTH, L.MAIN_HEIGHT)
+    frame:SetMaxResize(L.MAX_WIDTH, L.MAX_HEIGHT)
     frame:SetScript("OnMouseDown", function()
         frame:StartMoving()
         frame:SetFrameStrata("HIGH")
@@ -365,7 +402,7 @@ function MessageBox:CreateFrame()
         frame:StopMovingOrSizing()
     end)
     frame:SetScript("OnSizeChanged", function() 
-        MessageBox:UpdateContactList() 
+        MessageBox:MarkContactListDirty() 
     end)
     frame:Hide()
 
@@ -379,9 +416,9 @@ function MessageBox:CreateFrame()
     closeButton:SetWidth(18)
     closeButton:SetHeight(18)
     closeButton:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -6, -5)
-    closeButton:SetNormalTexture("Interface\\AddOns\\MessageBox\\img\\rectangle-xmark-outline.tga")
-    closeButton:SetPushedTexture("Interface\\AddOns\\MessageBox\\img\\rectangle-xmark-solid.tga")
-    closeButton:SetHighlightTexture("Interface\\AddOns\\MessageBox\\img\\rectangle-xmark-solid.tga")
+    closeButton:SetNormalTexture(MessageBox.textures.closeOutline)
+    closeButton:SetPushedTexture(MessageBox.textures.closeSolid)
+    closeButton:SetHighlightTexture(MessageBox.textures.closeSolid)
     closeButton:SetAlpha(0.7)
     closeButton:SetScript("OnEnter", function() this:SetAlpha(1.0) end)
     closeButton:SetScript("OnLeave", function() this:SetAlpha(0.7) end)
@@ -391,17 +428,31 @@ function MessageBox:CreateFrame()
     local dropDown = CreateFrame("Frame", "MessageBoxContextMenu", frame, "UIDropDownMenuTemplate")
 
     local contactFrame = CreateFrame("Frame", nil, frame)
-    contactFrame:SetWidth(140)
+    contactFrame:SetWidth(L.CONTACT_WIDTH)
     contactFrame:SetPoint("TOPLEFT", frame, "TOPLEFT", 15, -26)
     contactFrame:SetPoint("BOTTOMLEFT", frame, "BOTTOMLEFT", 15, 40)
     
     MessageBox.contactFrame = contactFrame
+    MessageBox.contactListLastUpdate = 0
 
+    -- Throttled contact list rebuild via dirty flag
+    contactFrame:SetScript("OnUpdate", function()
+        if not MessageBox.contactListDirty then return end
+        local now = GetTime()
+        if (now - MessageBox.contactListLastUpdate) < MessageBox.CONTACT_LIST_THROTTLE then return end
+        MessageBox.contactListDirty = false
+        MessageBox.contactListLastUpdate = now
+        MessageBox:UpdateContactList()
+    end)
+
+    -- Clip region: rows are parented to clipChild so they're visually clipped
+    -- to the contactFrame bounds. The ScrollFrame itself is not scrolled
+    -- programmatically; FauxScrollFrames handle virtual scrolling separately.
     local clipFrame = CreateFrame("ScrollFrame", nil, contactFrame)
     clipFrame:SetPoint("TOPLEFT", contactFrame, "TOPLEFT", 0, -32) 
     clipFrame:SetPoint("BOTTOMRIGHT", contactFrame, "BOTTOMRIGHT", 0, 10) 
     local clipChild = CreateFrame("Frame", nil, clipFrame)
-    clipChild:SetWidth(140)
+    clipChild:SetWidth(L.CONTACT_WIDTH)
     clipChild:SetHeight(2000)
     clipFrame:SetScrollChild(clipChild)
     MessageBox.clipChild = clipChild
@@ -475,9 +526,9 @@ function MessageBox:CreateFrame()
     resizeButton:SetWidth(16)
     resizeButton:SetHeight(16)
     resizeButton:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -4, 4)
-    resizeButton:SetNormalTexture("Interface\\AddOns\\MessageBox\\img\\sizegrabber-up.tga")
-    resizeButton:SetPushedTexture("Interface\\AddOns\\MessageBox\\img\\sizegrabber-down.tga")
-    resizeButton:SetHighlightTexture("Interface\\AddOns\\MessageBox\\img\\sizegrabber-highlight.tga")
+    resizeButton:SetNormalTexture(MessageBox.textures.sizeUp)
+    resizeButton:SetPushedTexture(MessageBox.textures.sizeDown)
+    resizeButton:SetHighlightTexture(MessageBox.textures.sizeHi)
     resizeButton:SetScript("OnMouseDown", function() this:GetParent():StartSizing("BOTTOMRIGHT") end)
     resizeButton:SetScript("OnMouseUp", function() this:GetParent():StopMovingOrSizing() end)
 
@@ -552,15 +603,13 @@ function MessageBox:CreateFrame()
     chatHistory:SetPoint("TOPLEFT", MessageBox.chatHeader, "BOTTOMLEFT", 8, -10)
     chatHistory:SetPoint("BOTTOMRIGHT", chatFrame, "BOTTOMRIGHT", -25, 43)
     
-    chatHistory:SetFont("Interface\\AddOns\\MessageBox\\font\\OpenSans.ttf", MessageBox.settings.chatFontSize or 12, "OUTLINE")
+    chatHistory:SetFont(MessageBox.fonts.openSans, MessageBox.settings.chatFontSize or MessageBox.defaultSettings.chatFontSize, "OUTLINE")
     chatHistory:SetShadowOffset(1, -1)
     
     chatHistory:SetJustifyH("LEFT")
     chatHistory:SetMaxLines(500)
     chatHistory:SetFading(false)
     chatHistory:EnableMouseWheel(true)
-    
-    MessageBox.CHAT_DISPLAY_LIMIT = 100
     
     chatHistory:SetScript("OnMouseWheel", function()
         local delta = arg1
@@ -596,9 +645,22 @@ function MessageBox:CreateFrame()
     
     chatScrollBar:SetScript("OnValueChanged", function()
         if this.isUpdating then return end
-        MessageBox:UpdateChatHistory()
+        MessageBox.chatRenderDirty = true
     end)
     MessageBox.chatScrollBar = chatScrollBar
+    
+    -- Throttled render via OnUpdate
+    MessageBox.chatRenderDirty = false
+    MessageBox.chatLastRenderTime = 0
+    
+    chatHistory:SetScript("OnUpdate", function()
+        if not MessageBox.chatRenderDirty then return end
+        local now = GetTime()
+        if (now - MessageBox.chatLastRenderTime) < MessageBox.RENDER_THROTTLE then return end
+        MessageBox.chatRenderDirty = false
+        MessageBox.chatLastRenderTime = now
+        MessageBox:UpdateChatHistory()
+    end)
     
     chatHistory:EnableMouse(true)
     chatHistory:SetScript("OnHyperlinkClick", function()
@@ -656,8 +718,8 @@ function MessageBox:CreateFrame()
     themeButton:SetWidth(20)
     themeButton:SetHeight(20)
     themeButton:SetPoint("LEFT", settingsButton, "RIGHT", 5, 0)
-    themeButton:SetNormalTexture("Interface\\AddOns\\MessageBox\\img\\palette.tga")
-    themeButton:SetHighlightTexture("Interface\\Buttons\\UI-Listbox-Highlight2")
+    themeButton:SetNormalTexture(MessageBox.textures.palette)
+    themeButton:SetHighlightTexture(MessageBox.textures.listHighlight)
     
     themeButton:SetScript("OnClick", function() 
         if MessageBox.themeFrame and MessageBox.themeFrame:IsVisible() then
@@ -678,16 +740,16 @@ function MessageBox:CreateFrame()
     bellButton:SetWidth(20)
     bellButton:SetHeight(20)
     bellButton:SetPoint("LEFT", themeButton, "RIGHT", 5, 0)
-    bellButton:SetNormalTexture("Interface\\AddOns\\MessageBox\\img\\bell-on.tga") 
-    bellButton:SetHighlightTexture("Interface\\Buttons\\UI-Panel-MinimizeButton-Highlight")
+    bellButton:SetNormalTexture(MessageBox.textures.bellOn) 
+    bellButton:SetHighlightTexture(MessageBox.textures.minimizeBtnHi)
     
     bellButton.UpdateState = function()
         if MessageBox.settings.popupNotificationsEnabled then
-            bellButton:SetNormalTexture("Interface\\AddOns\\MessageBox\\img\\bell-on.tga")
+            bellButton:SetNormalTexture(MessageBox.textures.bellOn)
             bellButton:SetAlpha(1.0) 
             bellButton:GetNormalTexture():SetVertexColor(1, 1, 1) 
         else
-            bellButton:SetNormalTexture("Interface\\AddOns\\MessageBox\\img\\bell-off-slash.tga")
+            bellButton:SetNormalTexture(MessageBox.textures.bellOff)
             bellButton:SetAlpha(1.0)
             bellButton:GetNormalTexture():SetVertexColor(1, 1, 1)
         end
@@ -730,16 +792,23 @@ function MessageBox:UpdateContactList()
     local hideOffline = MessageBox.settings.hideOffline
     
     MessageBox.visibleFriends = {}
+    MessageBox.onlineStatus = {}
+    MessageBox.friendSet = {} -- fast lookup for IsFriend
     for i = 1, GetNumFriends() do
         local name, level, class, area, connected, status = GetFriendInfo(i)
         if name then
-            local matchesSearch = (searchQuery == "") or string.find(string.lower(name), searchQuery)
+            local nameLower = string.lower(name)
+            MessageBox.onlineStatus[nameLower] = connected
+            MessageBox.friendSet[nameLower] = true
+            
+            local matchesSearch = (searchQuery == "") or string.find(nameLower, searchQuery)
             local showContact = matchesSearch
             if hideOffline and not connected then showContact = false end
             
             if showContact then
                  if not MessageBox.playerCache[name] then MessageBox.playerCache[name] = {} end
                  MessageBox.playerCache[name].class = class
+                 MessageBox.playerCache[name].classUpper = class and string.upper(class) or nil
                  MessageBox.playerCache[name].level = level
                  MessageBox.playerCache[name].zone = area
                  MessageBox.playerCache[name].status = status
@@ -747,6 +816,7 @@ function MessageBox:UpdateContactList()
                  table.insert(MessageBox.visibleFriends, {
                      name = name,
                      class = class,
+                     classUpper = class and string.upper(class) or nil,
                      connected = connected,
                      unread = MessageBox.unreadCounts[name] or 0
                  })
@@ -756,37 +826,58 @@ function MessageBox:UpdateContactList()
 
     MessageBox.visibleConversations = {}
     if MessageBox.conversations then
-        local sortedContacts = {}
-        for contact, data in pairs(MessageBox.conversations) do
-            if data and data.times and table.getn(data.times) > 0 then
-                table.insert(sortedContacts, contact)
+        -- Only re-sort when conversation order has changed
+        if MessageBox.conversationOrderDirty ~= false then
+            local sortedContacts = {}
+            for contact, data in pairs(MessageBox.conversations) do
+                if data and data.times and MessageBox:GetCount(data) > 0 then
+                    table.insert(sortedContacts, contact)
+                end
             end
+            table.sort(sortedContacts, function(a, b)
+                local convoA = MessageBox.conversations[a]
+                local convoB = MessageBox.conversations[b]
+                -- Pinned conversations always come first
+                local pinnedA = convoA.pinned or false
+                local pinnedB = convoB.pinned or false
+                if pinnedA and not pinnedB then return true end
+                if not pinnedA and pinnedB then return false end
+                -- Within the same pin group, sort by most recent message
+                local countA = MessageBox:GetCount(convoA)
+                local countB = MessageBox:GetCount(convoB)
+                local lastTimeA = convoA.times[countA]
+                local lastTimeB = convoB.times[countB]
+                if type(lastTimeA) ~= "number" then return false end
+                if type(lastTimeB) ~= "number" then return true end
+                return lastTimeA > lastTimeB
+            end)
+            MessageBox.cachedSortedContacts = sortedContacts
+            MessageBox.conversationOrderDirty = false
         end
-        table.sort(sortedContacts, function(a, b)
-            local convoA = MessageBox.conversations[a]
-            local convoB = MessageBox.conversations[b]
-            local lastTimeA = convoA.times[table.getn(convoA.times)]
-            local lastTimeB = convoB.times[table.getn(convoB.times)]
-            if type(lastTimeA) ~= "number" then return false end
-            if type(lastTimeB) ~= "number" then return true end
-            return lastTimeA > lastTimeB
-        end)
         
+        local sortedContacts = MessageBox.cachedSortedContacts or {}
         for i = 1, table.getn(sortedContacts) do
             local contact = sortedContacts[i]
-            local matchesSearch = (searchQuery == "") or string.find(string.lower(contact), searchQuery)
-            
-            if matchesSearch then
-                table.insert(MessageBox.visibleConversations, {
-                    name = contact,
-                    unread = MessageBox.unreadCounts[contact] or 0,
-                    pinned = MessageBox.conversations[contact].pinned or false
-                })
+            -- Verify conversation still exists (may have been deleted)
+            if MessageBox.conversations[contact] then
+                local matchesSearch = (searchQuery == "") or string.find(string.lower(contact), searchQuery)
+                
+                if matchesSearch then
+                    table.insert(MessageBox.visibleConversations, {
+                        name = contact,
+                        unread = MessageBox.unreadCounts[contact] or 0,
+                        pinned = MessageBox.conversations[contact].pinned or false
+                    })
+                end
             end
         end
     end
     
     MessageBox:UpdateScrollViews()
+end
+
+function MessageBox:MarkContactListDirty()
+    MessageBox.contactListDirty = true
 end
 
 function MessageBox:UpdateScrollViews()
@@ -795,11 +886,12 @@ function MessageBox:UpdateScrollViews()
     local friendsCollapsed = MessageBox.settings.friendsListCollapsed
     local conversationsCollapsed = MessageBox.settings.conversationsListCollapsed
     
-    local ROW_HEIGHT = 16
-    local SEARCH_AREA_HEIGHT = 30
-    local HEADER_HEIGHT = 20
-    local BOTTOM_PADDING = 10
-    local MIDDLE_PADDING = 18
+    local L = MessageBox.layout
+    local ROW_HEIGHT = L.ROW_HEIGHT
+    local SEARCH_AREA_HEIGHT = L.SEARCH_AREA_HEIGHT
+    local HEADER_HEIGHT = L.HEADER_HEIGHT
+    local BOTTOM_PADDING = L.BOTTOM_PADDING
+    local MIDDLE_PADDING = L.MIDDLE_PADDING
     
     local containerHeight = MessageBox.frame:GetHeight() - 66
     local availableHeight = containerHeight - SEARCH_AREA_HEIGHT - (HEADER_HEIGHT * 2) - BOTTOM_PADDING - MIDDLE_PADDING
@@ -894,8 +986,8 @@ function MessageBox:UpdateScrollViews()
                     local data = MessageBox.visibleFriends[dataIndex]
                     
                     local displayName = data.name
-                    if data.class and RAID_CLASS_COLORS[string.upper(data.class)] then
-                        local color = RAID_CLASS_COLORS[string.upper(data.class)]
+                    if data.class and RAID_CLASS_COLORS[data.classUpper] then
+                        local color = RAID_CLASS_COLORS[data.classUpper]
                         displayName = string.format("|cff%02x%02x%02x%s|r", color.r*255, color.g*255, color.b*255, data.name)
                     end
                     if data.unread > 0 then
@@ -910,7 +1002,7 @@ function MessageBox:UpdateScrollViews()
                     if row.isHovered then
                         row.text:SetTextColor(0.82, 0.82, 0.82, 1)
                     else
-                        local c = MessageBox.settings.textColor or {1, 1, 1, 1}
+                        local c = MessageBox.settings.textColor or MessageBox.defaultSettings.textColor
                         row.text:SetTextColor(unpack(c))
                     end
                     
@@ -950,8 +1042,8 @@ function MessageBox:UpdateScrollViews()
                     
                     local displayName = data.name
                     local cache = MessageBox.playerCache[data.name]
-                    if cache and cache.class and RAID_CLASS_COLORS[string.upper(cache.class)] then
-                        local color = RAID_CLASS_COLORS[string.upper(cache.class)]
+                    if cache and cache.class and RAID_CLASS_COLORS[cache.classUpper] then
+                        local color = RAID_CLASS_COLORS[cache.classUpper]
                         displayName = string.format("|cff%02x%02x%02x%s|r", color.r*255, color.g*255, color.b*255, data.name)
                     end
                     
@@ -969,7 +1061,7 @@ function MessageBox:UpdateScrollViews()
                     if row.isHovered then
                         row.text:SetTextColor(0.82, 0.82, 0.82, 1)
                     else
-                        local c = MessageBox.settings.textColor or {1, 1, 1, 1}
+                        local c = MessageBox.settings.textColor or MessageBox.defaultSettings.textColor
                         row.text:SetTextColor(unpack(c))
                     end
 
@@ -998,8 +1090,12 @@ function MessageBox:UpdateScrollViews()
 end
 
 function MessageBox:SelectContact(contact)
-    local hasUnread = MessageBox.unreadCounts and MessageBox.unreadCounts[contact] and MessageBox.unreadCounts[contact] > 0
     if not contact then return end
+    
+    -- Close search bar when switching contacts
+    if MessageBox.chatSearchActive then
+        MessageBox:CloseSearchBar()
+    end
     
     local unreadToPass = 0
     if MessageBox.unreadCounts and MessageBox.unreadCounts[contact] then
@@ -1009,7 +1105,7 @@ function MessageBox:SelectContact(contact)
     if unreadToPass > 0 then
         local c = MessageBox.conversations[contact]
         if c and c.messages then
-            MessageBox.currentSplitIndex = table.getn(c.messages) - unreadToPass + 1
+            MessageBox.currentSplitIndex = MessageBox:GetCount(c) - unreadToPass + 1
         end
     else
         MessageBox.currentSplitIndex = 0
@@ -1018,13 +1114,7 @@ function MessageBox:SelectContact(contact)
     MessageBox.selectedContact = contact
     
     if not MessageBox.conversations[contact] then 
-        MessageBox.conversations[contact] = {
-            messages = {},
-            times = {},
-            outgoing = {},
-            system = {},
-            pinned = false
-        }
+        MessageBox.conversations[contact] = MessageBox:NewConversation()
     end
     
     MessageBox:UpdateChatHeader()
@@ -1065,18 +1155,15 @@ function MessageBox:UpdateChatHistory(unreadCount, resetToBottom)
         return 
     end
     
-    MessageBox.chatHistory:Clear()
-    
-    local totalMessages = table.getn(c.messages)
+    local totalMessages = MessageBox:GetCount(c)
     
     if totalMessages == 0 then
+        MessageBox.chatHistory:Clear()
         if MessageBox.chatScrollBar then
             MessageBox.chatScrollBar:Hide()
         end
         return
     end
-    
-    local displayLimit = MessageBox.CHAT_DISPLAY_LIMIT or 100
     
     local anchorIndex = totalMessages
     
@@ -1087,56 +1174,7 @@ function MessageBox:UpdateChatHistory(unreadCount, resetToBottom)
         anchorIndex = val
     end
     
-    local startIndex = anchorIndex - displayLimit
-    if startIndex < 1 then startIndex = 1 end
-    
-    local splitIndex = 0
-    if unreadCount and unreadCount > 0 then
-        splitIndex = totalMessages - unreadCount + 1
-    end
-
-    local lastMessageDate = nil
-    local timeFmt = MessageBox.settings.use12HourFormat and "%I:%M %p" or "%H:%M"
-    
-    for i = startIndex, anchorIndex do
-        if i == splitIndex then
-            MessageBox.chatHistory:AddMessage(" ")
-            MessageBox.chatHistory:AddMessage("|cff888888------------------------------ New Messages ------------------------------|r")
-            MessageBox.chatHistory:AddMessage(" ")
-        end
-
-        local msg = c.messages[i]
-        local timeVal = c.times[i]
-        local isOutgoing = c.outgoing[i]
-        local isSystem = c.system[i]
-        
-        local formattedMessage, timeString
-        
-        if type(timeVal) == "number" then
-            local currentMessageDate = date("%Y%m%d", timeVal)
-            if lastMessageDate ~= currentMessageDate then
-                if lastMessageDate ~= nil then MessageBox.chatHistory:AddMessage(" ") end
-                local dateText = "|cff666666— " .. date("%A, %B %d", timeVal) .. " —|r"
-                MessageBox.chatHistory:AddMessage(dateText)
-                lastMessageDate = currentMessageDate
-            end
-            timeString = "|cff808080[" .. date(timeFmt, timeVal) .. "]|r"
-        else
-            timeString = "|cff808080[" .. tostring(timeVal) .. "]|r"
-        end
-
-        if isSystem then
-            formattedMessage = string.format("%s %s%s|r", timeString, "|cffffcc00", msg)
-        else
-            local cleanMessage = MessageBox:HandleLink(msg)
-            local nameColor = isOutgoing and "|cff8080ff" or "|cffff80ff"
-            local name = isOutgoing and "You" or MessageBox.selectedContact
-            formattedMessage = string.format("%s %s%s:|r %s%s|r", timeString, nameColor, name, "|cffffffff", cleanMessage)
-        end
-        MessageBox.chatHistory:AddMessage(formattedMessage)
-    end
-    
-    MessageBox.chatHistory:ScrollToBottom()
+    MessageBox:RenderMessages(MessageBox.chatHistory, self.selectedContact, anchorIndex, unreadCount)
     
     if MessageBox.chatScrollBar then
         if totalMessages == 0 then
@@ -1168,6 +1206,12 @@ function MessageBox:SendWhisper()
         MessageBox.whisperInput:SetText("")
         if MessageBox.inputBackdrop then MessageBox.inputBackdrop:SetHeight(28) end
         return 
+    end
+
+    -- WoW 1.12 has a 255-character limit on chat messages
+    if string.len(message) > 255 then
+        MessageBox:AddSystemMessage(MessageBox.selectedContact, "Message too long (" .. string.len(message) .. "/255 characters). Please shorten it.", true)
+        return
     end
 
     local isOnline = MessageBox:IsPlayerOnline(MessageBox.selectedContact)
@@ -1215,6 +1259,9 @@ function MessageBox:ShowFrame()
 end
 
 function MessageBox:HideFrame()
+    if self.chatSearchActive then
+        self:CloseSearchBar()
+    end
     if self.frame then self.frame:Hide() end
 end
 
@@ -1222,259 +1269,174 @@ function MessageBox:ToggleFrame()
     if self.frame and self.frame:IsVisible() then self:HideFrame() else self:ShowFrame() end
 end
 
-function MessageBox:OpenDetachedWindow(contact)
-    if not contact then return end
+function MessageBox:OpenSearchBar()
+    if not self.selectedContact then return end
     
-    if self.detachedWindows[contact] then
-        self.detachedWindows[contact]:Show()
-        return
-    end
-
-    if not self.conversations[contact] then
-        self.conversations[contact] = {
-            messages = {},
-            times = {},
-            outgoing = {},
-            system = {},
-            pinned = false
-        }
-    end
-
-    local f = CreateFrame("Frame", "MessageBoxDetached_"..contact, UIParent)
-    f:SetWidth(300)
-    f:SetHeight(250)
-    
-    local cascadeIndex = 0
-    if self.detachedWindows then
-        for _, win in pairs(self.detachedWindows) do
-            if win and win:IsVisible() then
-                cascadeIndex = cascadeIndex + 1
+    if not self.searchBarFrame then
+        local bar = CreateFrame("Frame", "MessageBoxSearchBar", self.chatFrame)
+        bar:SetHeight(26)
+        bar:SetPoint("TOPLEFT", self.chatHeader, "BOTTOMLEFT", 0, 0)
+        bar:SetPoint("TOPRIGHT", self.chatHeader, "BOTTOMRIGHT", 0, 0)
+        
+        bar:SetBackdrop({
+            bgFile = MessageBox.textures.tooltipBg,
+            tile = true, tileSize = 16,
+            insets = {left = 0, right = 0, top = 0, bottom = 0}
+        })
+        bar:SetBackdropColor(0, 0, 0, 0.5)
+        
+        local searchInput = CreateFrame("EditBox", "MessageBoxChatSearchInput", bar)
+        searchInput:SetWidth(150)
+        searchInput:SetHeight(18)
+        searchInput:SetPoint("LEFT", bar, "LEFT", 8, 0)
+        searchInput:SetFontObject("GameFontHighlightSmall")
+        searchInput:SetAutoFocus(false)
+        
+        searchInput:SetBackdrop({
+            bgFile = MessageBox.textures.chatBg,
+            edgeFile = MessageBox.textures.chatBg,
+            tile = false, tileSize = 0, edgeSize = 1,
+            insets = {left = 2, right = 2, top = 2, bottom = 2}
+        })
+        searchInput:SetBackdropColor(0.1, 0.1, 0.1, 0.8)
+        searchInput:SetBackdropBorderColor(0.3, 0.3, 0.3, 1)
+        searchInput:SetTextInsets(4, 4, 0, 0)
+        
+        local placeholder = searchInput:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+        placeholder:SetPoint("LEFT", searchInput, "LEFT", 5, 0)
+        placeholder:SetText("Search...")
+        placeholder:SetTextColor(0.5, 0.5, 0.5)
+        searchInput.placeholder = placeholder
+        
+        searchInput:SetScript("OnEditFocusGained", function()
+            this.placeholder:Hide()
+        end)
+        searchInput:SetScript("OnEditFocusLost", function()
+            if this:GetText() == "" then
+                this.placeholder:Show()
             end
-        end
-    end
-    
-    local xOffset = 20 + (cascadeIndex * 20)
-    local yOffset = -50 - (cascadeIndex * 20)
-
-    f:SetFrameStrata("MEDIUM")
-    f:SetToplevel(true)
-    f:SetMovable(true)
-    f:EnableMouse(true)
-    f:SetResizable(true)
-    f:SetMinResize(200, 150)
-    f:SetMaxResize(600, 600)
-    
-    f:SetBackdrop({
-        bgFile = "Interface\\DialogFrame\\UI-DialogBox-Background",
-        edgeFile = "Interface\\DialogFrame\\UI-DialogBox-Border",
-        tile = true, tileSize = 32, edgeSize = 32,
-        insets = { left = 11, right = 12, top = 12, bottom = 11 }
-    })
-    
-    if MessageBox.frame and MessageBox.frame:IsVisible() then
-        f:SetPoint("BOTTOMLEFT", MessageBox.frame, "TOPRIGHT", xOffset, yOffset)
-    else
-        local centerOffset = cascadeIndex * 20
-        f:SetPoint("CENTER", UIParent, "CENTER", centerOffset, -centerOffset)
-    end
-    
-    f:SetScript("OnMouseDown", function()
-        this:StartMoving()
-        this:SetFrameStrata("HIGH")
-    end)
-    f:SetScript("OnMouseUp", function()
-        this:StopMovingOrSizing()
-    end)
-    
-    f.contact = contact
-    
-    local title = f:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
-    title:SetPoint("TOP", 0, -8)
-    
-    local displayTitle = contact
-    local cache = self.playerCache[contact]
-    if cache and cache.class then
-        local color = RAID_CLASS_COLORS[string.upper(cache.class)]
-        if color then
-            displayTitle = string.format("|cff%02x%02x%02x%s|r", color.r*255, color.g*255, color.b*255, contact)
-        end
-    end
-    title:SetText(displayTitle)
-    f.title = title
-
-    local closeBtn = CreateFrame("Button", nil, f)
-    closeBtn:SetWidth(18)
-    closeBtn:SetHeight(18)
-    closeBtn:SetPoint("TOPRIGHT", -6, -5)
-    closeBtn:SetNormalTexture("Interface\\AddOns\\MessageBox\\img\\rectangle-xmark-outline.tga")
-    closeBtn:SetPushedTexture("Interface\\AddOns\\MessageBox\\img\\rectangle-xmark-solid.tga")
-    closeBtn:SetHighlightTexture("Interface\\AddOns\\MessageBox\\img\\rectangle-xmark-solid.tga")
-    closeBtn:SetAlpha(0.7)
-    closeBtn:SetScript("OnEnter", function() this:SetAlpha(1.0) end)
-    closeBtn:SetScript("OnLeave", function() this:SetAlpha(0.7) end)
-    closeBtn:SetScript("OnClick", function() 
-        this:GetParent():Hide() 
-    end)
-    f.closeBtn = closeBtn
-
-    local resizeButton = CreateFrame("Button", nil, f)
-    resizeButton:SetWidth(16)
-    resizeButton:SetHeight(16)
-    resizeButton:SetPoint("BOTTOMRIGHT", f, "BOTTOMRIGHT", -4, 4)
-    resizeButton:SetNormalTexture("Interface\\AddOns\\MessageBox\\img\\sizegrabber-up.tga")
-    resizeButton:SetPushedTexture("Interface\\AddOns\\MessageBox\\img\\sizegrabber-down.tga")
-    resizeButton:SetHighlightTexture("Interface\\AddOns\\MessageBox\\img\\sizegrabber-highlight.tga")
-    resizeButton:SetScript("OnMouseDown", function() this:GetParent():StartSizing("BOTTOMRIGHT") end)
-    resizeButton:SetScript("OnMouseUp", function() this:GetParent():StopMovingOrSizing() end)
-
-    local inputBackdrop = CreateFrame("Frame", nil, f)
-    inputBackdrop:SetHeight(28)
-    inputBackdrop:SetPoint("BOTTOMLEFT", f, "BOTTOMLEFT", 10, 10)
-    inputBackdrop:SetPoint("BOTTOMRIGHT", f, "BOTTOMRIGHT", -25, 10)
-    
-    f.inputBackdrop = inputBackdrop
-
-    local editBox = CreateFrame("EditBox", nil, inputBackdrop)
-    editBox:SetPoint("TOPLEFT", inputBackdrop, "TOPLEFT", 6, -6)
-    editBox:SetPoint("BOTTOMRIGHT", inputBackdrop, "BOTTOMRIGHT", -6, 6)
-    editBox:SetFontObject("GameFontHighlight")
-    editBox:SetAutoFocus(false)
-    editBox:SetMultiLine(false)
-    editBox:EnableMouse(true)
-    
-    editBox:SetScript("OnEscapePressed", function() this:ClearFocus() end)
-    editBox:SetScript("OnEnterPressed", function()
-        local msg = this:GetText()
-        if msg and msg ~= "" then
-            MessageBox:AddMessage(contact, msg, true)
-            SendChatMessage(msg, "WHISPER", nil, contact)
-            this:SetText("")
-            this:ClearFocus()
-        end
-    end)
-    f.editBox = editBox
-
-    local history = CreateFrame("ScrollingMessageFrame", nil, f)
-    history:SetPoint("TOPLEFT", f, "TOPLEFT", 15, -26)
-    history:SetPoint("BOTTOMRIGHT", inputBackdrop, "TOPRIGHT", -22, 5)
-    
-    history:SetFont("Interface\\AddOns\\MessageBox\\font\\OpenSans.ttf", MessageBox.settings.chatFontSize or 12, "OUTLINE")
-    history:SetShadowOffset(1, -1)
-    
-    history:SetJustifyH("LEFT")
-    history:SetMaxLines(500)
-    history:SetFading(false)
-    history:EnableMouseWheel(true)
-    
-    f.history = history
-
-    local sb = CreateFrame("Slider", "MessageBoxDetachedScroll_"..contact, f, "UIPanelScrollBarTemplate")
-    sb:SetPoint("TOPLEFT", history, "TOPRIGHT", 2, -14)
-    sb:SetPoint("BOTTOMLEFT", history, "BOTTOMRIGHT", 2, 14)
-    sb:SetWidth(16)
-    sb:SetMinMaxValues(1, 1)
-    sb:SetValueStep(1)
-    
-    local track = sb:CreateTexture(nil, "BACKGROUND")
-    track:SetTexture(0.15, 0.15, 0.15, 0.5)
-    track:SetPoint("TOP", sb, "TOP", 0, 16)
-    track:SetPoint("BOTTOM", sb, "BOTTOM", 0, -16)
-    track:SetWidth(4)
-    sb.track = track
-
-    -- Virtual scrolling logic
-    f.UpdateDisplay = function(self)
-        if not self.history or not self.scrollBar then return end
+        end)
         
-        local c = MessageBox.conversations[self.contact]
-        if not c or not c.messages then return end
-        
-        local totalMessages = table.getn(c.messages)
-        
-        if totalMessages == 0 then
-            self.history:Clear()
-            return
-        end
-        
-        local displayLimit = 100
-        
-        local anchorIndex = self.scrollBar:GetValue()
-        if anchorIndex > totalMessages then anchorIndex = totalMessages end
-        if anchorIndex < 1 then anchorIndex = 1 end
-        
-        local startIndex = anchorIndex - displayLimit
-        if startIndex < 1 then startIndex = 1 end
-        
-        self.history:Clear()
-        
-        local timeFmt = MessageBox.settings.use12HourFormat and "%I:%M %p" or "%H:%M"
-        
-        for i = startIndex, anchorIndex do
-            local msg = c.messages[i]
-            local timeVal = c.times[i]
-            local isOutgoing = c.outgoing[i]
-            local isSystem = c.system[i]
+        searchInput:SetScript("OnTextChanged", function()
+            local text = this:GetText()
+            if text ~= "" then
+                this.placeholder:Hide()
+            end
             
-            local timeString = type(timeVal) == "number" and date(timeFmt, timeVal) or tostring(timeVal)
-            timeString = "|cff808080[" .. timeString .. "]|r"
+            MessageBox.chatSearchTerm = text
+            MessageBox.chatSearchResults = MessageBox:SearchConversation(MessageBox.selectedContact, text)
             
-            if isSystem then
-                self.history:AddMessage(string.format("%s %s%s|r", timeString, "|cffffcc00", msg))
+            local count = table.getn(MessageBox.chatSearchResults)
+            if count > 0 then
+                MessageBox.chatSearchCurrentIndex = count
+                -- Jump to last (most recent) match
+                local msgIndex = MessageBox.chatSearchResults[count]
+                if MessageBox.chatScrollBar then
+                    MessageBox.chatScrollBar.isUpdating = true
+                    local total = table.getn(MessageBox.conversations[MessageBox.selectedContact].messages)
+                    MessageBox.chatScrollBar:SetMinMaxValues(1, total)
+                    MessageBox.chatScrollBar:SetValue(msgIndex)
+                    MessageBox.chatScrollBar.isUpdating = false
+                end
             else
-                local cleanMessage = MessageBox:HandleLink(msg)
-                local nameColor = isOutgoing and "|cff8080ff" or "|cffff80ff"
-                local name = isOutgoing and "You" or self.contact
-                self.history:AddMessage(string.format("%s %s%s:|r %s%s|r", timeString, nameColor, name, "|cffffffff", cleanMessage))
+                MessageBox.chatSearchCurrentIndex = 0
             end
-        end
+            
+            MessageBox:UpdateSearchCountLabel()
+            MessageBox:UpdateChatHistory()
+        end)
         
-        self.history:ScrollToBottom()
+        searchInput:SetScript("OnEscapePressed", function()
+            MessageBox:CloseSearchBar()
+        end)
+        
+        bar.searchInput = searchInput
+        
+        -- Count label
+        local countText = bar:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+        countText:SetPoint("LEFT", searchInput, "RIGHT", 6, 0)
+        countText:SetTextColor(0.8, 0.8, 0.8)
+        bar.countText = countText
+        MessageBox.searchCountText = countText
+        
+        -- Prev button (up arrow)
+        local prevBtn = CreateFrame("Button", nil, bar)
+        prevBtn:SetWidth(20)
+        prevBtn:SetHeight(20)
+        prevBtn:SetPoint("LEFT", countText, "RIGHT", 6, 0)
+        prevBtn:SetNormalTexture(MessageBox.textures.scrollUpUp)
+        prevBtn:SetPushedTexture(MessageBox.textures.scrollUpDown)
+        prevBtn:SetHighlightTexture(MessageBox.textures.scrollUpHi)
+        prevBtn:SetScript("OnClick", function()
+            MessageBox:ChatSearchNavigate(-1)
+        end)
+        prevBtn:SetScript("OnEnter", function()
+            GameTooltip:SetOwner(this, "ANCHOR_RIGHT")
+            GameTooltip:SetText("Previous Match")
+            GameTooltip:Show()
+        end)
+        prevBtn:SetScript("OnLeave", function() GameTooltip:Hide() end)
+        bar.prevBtn = prevBtn
+        
+        -- Next button (down arrow)
+        local nextBtn = CreateFrame("Button", nil, bar)
+        nextBtn:SetWidth(20)
+        nextBtn:SetHeight(20)
+        nextBtn:SetPoint("LEFT", prevBtn, "RIGHT", 2, 0)
+        nextBtn:SetNormalTexture(MessageBox.textures.scrollDownUp)
+        nextBtn:SetPushedTexture(MessageBox.textures.scrollDownDown)
+        nextBtn:SetHighlightTexture(MessageBox.textures.scrollDownHi)
+        nextBtn:SetScript("OnClick", function()
+            MessageBox:ChatSearchNavigate(1)
+        end)
+        nextBtn:SetScript("OnEnter", function()
+            GameTooltip:SetOwner(this, "ANCHOR_RIGHT")
+            GameTooltip:SetText("Next Match")
+            GameTooltip:Show()
+        end)
+        nextBtn:SetScript("OnLeave", function() GameTooltip:Hide() end)
+        bar.nextBtn = nextBtn
+        
+        -- Close button
+        local closeBtn = CreateFrame("Button", nil, bar)
+        closeBtn:SetWidth(14)
+        closeBtn:SetHeight(14)
+        closeBtn:SetPoint("RIGHT", bar, "RIGHT", -6, 0)
+        closeBtn:SetNormalTexture(MessageBox.textures.closeOutline)
+        closeBtn:SetPushedTexture(MessageBox.textures.closeSolid)
+        closeBtn:SetHighlightTexture(MessageBox.textures.closeSolid)
+        closeBtn:SetAlpha(0.7)
+        closeBtn:SetScript("OnEnter", function() this:SetAlpha(1.0) end)
+        closeBtn:SetScript("OnLeave", function() this:SetAlpha(0.7) end)
+        closeBtn:SetScript("OnClick", function()
+            MessageBox:CloseSearchBar()
+        end)
+        bar.closeBtn = closeBtn
+        
+        bar:Hide()
+        self.searchBarFrame = bar
     end
-
-    sb:SetScript("OnValueChanged", function()
-        if not this.isUpdating then
-            f:UpdateDisplay()
-        end
-    end)
     
-    history:SetScript("OnMouseWheel", function()
-        local current = sb:GetValue()
-        if arg1 > 0 then
-            sb:SetValue(current - 1)
-        else
-            sb:SetValue(current + 1)
-        end
-    end)
-
-    f.scrollBar = sb
-
-    history:SetScript("OnHyperlinkClick", function()
-        if arg1 and string.sub(arg1, 1, 3) == "url" then
-            MessageBox:ShowCopyPopup(string.sub(arg1, 5))
-            return
-        end
-        ChatFrame_OnHyperlinkShow(arg1, arg2, arg3)
-    end)
-
-    self.detachedWindows[contact] = f
+    self.chatSearchActive = true
+    self.chatSearchTerm = ""
+    self.chatSearchResults = {}
+    self.chatSearchCurrentIndex = 0
     
-    local c = self.conversations[contact]
-    if c and c.messages then
-        local total = table.getn(c.messages)
-        if total == 0 then total = 1 end
-        sb.isUpdating = true
-        sb:SetMinMaxValues(1, total)
-        sb:SetValue(total)
-        sb.isUpdating = false
-        f:UpdateDisplay()
-    end
-
+    self.searchBarFrame:Show()
+    self.searchBarFrame.searchInput:SetText("")
+    self.searchBarFrame.searchInput:SetFocus()
+    self:UpdateSearchCountLabel()
     self:ApplyTheme()
+    
+    -- Push chat history down below the search bar
+    if self.chatHistory then
+        self.chatHistory:SetPoint("TOPLEFT", self.searchBarFrame, "BOTTOMLEFT", 8, -5)
+    end
 end
 
 function MessageBox:ApplyChatFontSize()
     local size = self.settings.chatFontSize or 12
-    local font = "Interface\\AddOns\\MessageBox\\font\\OpenSans.ttf"
+    local font = MessageBox.fonts.openSans
     
     if self.chatHistory then
         self.chatHistory:SetFont(font, size, "OUTLINE")

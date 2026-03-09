@@ -13,12 +13,179 @@ MessageBox.visibleConversations = {}
 
 MessageBox.playerCache = {}
 MessageBox.detachedWindows = {} 
+MessageBox.friendSet = {}
+MessageBox.conversationOrderDirty = true
+MessageBox.cachedSortedContacts = {}
 
--- Who request queue
+-- Search state
+MessageBox.chatSearchActive = false
+MessageBox.chatSearchTerm = ""
+MessageBox.chatSearchResults = {}
+MessageBox.chatSearchCurrentIndex = 0
+
+-- Layout constants
+MessageBox.layout = {
+    MAIN_WIDTH          = 500,
+    MAIN_HEIGHT         = 350,
+    MAX_WIDTH           = 1000,
+    MAX_HEIGHT          = 800,
+    CONTACT_WIDTH       = 140,
+    ROW_HEIGHT          = 16,
+    HEADER_HEIGHT       = 20,
+    SEARCH_AREA_HEIGHT  = 30,
+    BOTTOM_PADDING      = 10,
+    MIDDLE_PADDING      = 18,
+    INPUT_HEIGHT        = 28,
+    ICON_SIZE           = 16,
+    BUTTON_HEIGHT       = 20,
+    DETACHED_WIDTH      = 300,
+    DETACHED_HEIGHT     = 250,
+    DETACHED_MIN_W      = 200,
+    DETACHED_MIN_H      = 150,
+    DETACHED_MAX_W      = 600,
+    DETACHED_MAX_H      = 600,
+}
+
+-- Contact list dirty flag (throttles redundant rebuilds)
+MessageBox.contactListDirty = false
+MessageBox.CONTACT_LIST_THROTTLE = 0.1
+
+-- Texture & font paths
+local A = "Interface\\AddOns\\MessageBox\\img\\"
+local B = "Interface\\Buttons\\"
+
+MessageBox.fonts = {
+    openSans        = "Interface\\AddOns\\MessageBox\\font\\OpenSans.ttf",
+    frizqt          = "Fonts\\FRIZQT__.TTF",
+}
+
+MessageBox.textures = {
+    -- Custom addon textures
+    closeOutline        = A .. "rectangle-xmark-outline.tga",
+    closeSolid          = A .. "rectangle-xmark-solid.tga",
+    pin                 = A .. "pin.tga",
+    pinSlash            = A .. "pin-slash.tga",
+    bellOn              = A .. "bell-on.tga",
+    bellOff             = A .. "bell-off-slash.tga",
+    envelope            = A .. "envelope-solid.tga",
+    envelopeOpen        = A .. "envelope-solid-open.tga",
+    palette             = A .. "palette.tga",
+    search              = A .. "magnifying-glass.tga",
+    caretUp             = A .. "square-caret-up.tga",
+    caretUpHi           = A .. "square-caret-up-highlight.tga",
+    caretDown           = A .. "square-caret-down.tga",
+    caretDownHi         = A .. "square-caret-down-highlight.tga",
+    squareSolid         = A .. "square-solid.tga",
+    sizeUp              = A .. "sizegrabber-up.tga",
+    sizeDown            = A .. "sizegrabber-down.tga",
+    sizeHi              = A .. "sizegrabber-highlight.tga",
+
+    -- Blizzard: panel buttons
+    panelBtnUp          = B .. "UI-Panel-Button-Up",
+    panelBtnDown        = B .. "UI-Panel-Button-Down",
+    minimizeBtnUp       = B .. "UI-Panel-MinimizeButton-Up",
+    minimizeBtnDown     = B .. "UI-Panel-MinimizeButton-Down",
+    minimizeBtnHi       = B .. "UI-Panel-MinimizeButton-Highlight",
+    minimizeBtnDisabled = B .. "UI-Panel-MinimizeButton-Disabled",
+    listHighlight       = B .. "UI-Listbox-Highlight2",
+    white8x8            = B .. "WHITE8x8",
+
+    -- Blizzard: plus/minus
+    plusUp              = B .. "UI-PlusButton-Up",
+    plusDown            = B .. "UI-PlusButton-Down",
+    plusHi              = B .. "UI-PlusButton-Highlight",
+    minusUp             = B .. "UI-MinusButton-Up",
+    minusDown           = B .. "UI-MinusButton-Down",
+    minusHi             = B .. "UI-MinusButton-Highlight",
+
+    -- Blizzard: scrollbar
+    scrollUpUp          = B .. "UI-ScrollBar-ScrollUpButton-Up",
+    scrollUpDown        = B .. "UI-ScrollBar-ScrollUpButton-Down",
+    scrollUpHi          = B .. "UI-ScrollBar-ScrollUpButton-Highlight",
+    scrollDownUp        = B .. "UI-ScrollBar-ScrollDownButton-Up",
+    scrollDownDown      = B .. "UI-ScrollBar-ScrollDownButton-Down",
+    scrollDownHi        = B .. "UI-ScrollBar-ScrollDownButton-Highlight",
+    scrollKnob          = B .. "UI-ScrollBar-Knob",
+    quickslot           = B .. "UI-Quickslot2",
+
+    -- Blizzard: dialog
+    dialogBg            = "Interface\\DialogFrame\\UI-DialogBox-Background",
+    dialogBorder        = "Interface\\DialogFrame\\UI-DialogBox-Border",
+
+    -- Blizzard: tooltip
+    tooltipBg           = "Interface\\Tooltips\\UI-Tooltip-Background",
+    tooltipBorder       = "Interface\\Tooltips\\UI-Tooltip-Border",
+
+    -- Blizzard: chat frame
+    chatBg              = "Interface\\ChatFrame\\ChatFrameBackground",
+    chatUp              = "Interface\\ChatFrame\\UI-ChatIcon-Chat-Up",
+    chatDown            = "Interface\\ChatFrame\\UI-ChatIcon-Chat-Down",
+    chatBlink           = "Interface\\ChatFrame\\UI-ChatIcon-BlinkHilight",
+
+    -- Blizzard: minimap
+    minimapZoomHi       = "Interface\\Minimap\\UI-Minimap-ZoomButton-Highlight",
+    minimapBorder       = "Interface\\Minimap\\MiniMap-TrackingBorder",
+
+    -- Blizzard: icons
+    iconLetter          = "Interface\\Icons\\INV_Letter_15",
+    iconQuestion        = "Interface\\Icons\\INV_Misc_QuestionMark",
+    classIcons          = "Interface\\Glues\\CharacterCreate\\UI-CharacterCreate-Classes",
+    questHighlight      = "Interface\\QuestFrame\\UI-QuestTitleHighlight",
+    partyIcon           = "Interface\\WorldMap\\WorldMapPartyIcon",
+}
+
+-- Conversation constructor (single source of truth for the data shape)
+function MessageBox:NewConversation()
+    return {
+        messages = {},
+        times = {},
+        outgoing = {},
+        system = {},
+        pinned = false,
+        count = 0
+    }
+end
+
+-- Centralized default settings (single source of truth)
+MessageBox.defaultSettings = {
+    friendsListCollapsed = false,
+    conversationsListCollapsed = false,
+    unreadCounts = {},
+    popupNotificationsEnabled = true,
+    notificationPopupPosition = { point = "CENTER", relativePoint = "CENTER", x = 0, y = -200 },
+    modernTheme = true,
+    hideOffline = false,
+    use12HourFormat = false,
+    showMinimapButton = true,
+    interceptWhispers = true,
+    backgroundWho = true,
+    chatFontSize = 10,
+    
+    mainColor = {0.08, 0.08, 0.1, 0.95},
+    panelColor = {0.15, 0.15, 0.17, 0.6},
+    inputColor = {0.1, 0.1, 0.1, 0.8},
+    highlightColor = {0.8, 0.8, 0.8, 1},
+    buttonColor = {0.2, 0.2, 0.2, 1},
+    textColor = {1, 1, 1, 1},
+    selectionColor = {0.8, 0.8, 0.8, 0.4},
+}
+
+-- Get message count for a conversation, with fallback for legacy data
+function MessageBox:GetCount(c)
+    if not c or not c.messages then return 0 end
+    if c.count then return c.count end
+    -- Legacy data: compute and cache
+    c.count = table.getn(c.messages)
+    return c.count
+end
 MessageBox.whoQueue = {} 
 MessageBox.whoTimer = 0
 MessageBox.WHO_INTERVAL = 30 
+MessageBox.WHO_TIMEOUT = 10
+MessageBox.WHO_QUEUE_MAX = 50
+MessageBox.RENDER_THROTTLE = 0.05
 MessageBox.waitingForWhoResult = false
+MessageBox.waitingForWhoSince = 0
 MessageBox.currentWhoEntry = nil 
 
 MessageBox.URLPattern = {
@@ -39,24 +206,24 @@ MessageBox.URLPattern = {
 MessageBox.themes = {
     classic = {
         mainBackdrop = {
-            bgFile = "Interface\\DialogFrame\\UI-DialogBox-Background",
-            edgeFile = "Interface\\DialogFrame\\UI-DialogBox-Border",
+            bgFile = MessageBox.textures.dialogBg,
+            edgeFile = MessageBox.textures.dialogBorder,
             tile = true, tileSize = 32, edgeSize = 32,
             insets = {left = 11, right = 12, top = 12, bottom = 11}
         },
         mainColor = {1, 1, 1, 1},
         mainBorderColor = {1, 1, 1, 1},
         panelBackdrop = {
-            bgFile = "Interface\\Tooltips\\UI-Tooltip-Background",
-            edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
+            bgFile = MessageBox.textures.tooltipBg,
+            edgeFile = MessageBox.textures.tooltipBorder,
             tile = true, tileSize = 16, edgeSize = 16,
             insets = {left = 4, right = 4, top = 4, bottom = 4}
         },
         panelColor = {0, 0, 0, 0.8},
         panelBorderColor = {1, 1, 1, 1},
         inputBackdrop = {
-            bgFile = "Interface\\Tooltips\\UI-Tooltip-Background",
-            edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
+            bgFile = MessageBox.textures.tooltipBg,
+            edgeFile = MessageBox.textures.tooltipBorder,
             tile = true, tileSize = 16, edgeSize = 16,
             insets = {left = 5, right = 5, top = 5, bottom = 5}
         },
@@ -65,22 +232,22 @@ MessageBox.themes = {
     },
     modern = {
         mainBackdrop = {
-            bgFile = "Interface\\ChatFrame\\ChatFrameBackground",
-            edgeFile = "Interface\\ChatFrame\\ChatFrameBackground",
+            bgFile = MessageBox.textures.chatBg,
+            edgeFile = MessageBox.textures.chatBg,
             tile = false, tileSize = 0, edgeSize = 1,
             insets = {left = 0, right = 0, top = 0, bottom = 0}
         },
         mainBorderColor = {0, 0, 0, 1},       
         panelBackdrop = {
-            bgFile = "Interface\\ChatFrame\\ChatFrameBackground",
-            edgeFile = "Interface\\ChatFrame\\ChatFrameBackground",
+            bgFile = MessageBox.textures.chatBg,
+            edgeFile = MessageBox.textures.chatBg,
             tile = false, tileSize = 0, edgeSize = 1,
             insets = {left = 0, right = 0, top = 0, bottom = 0}
         },
         panelBorderColor = {0.25, 0.25, 0.25, 1},
         inputBackdrop = {
-            bgFile = "Interface\\ChatFrame\\ChatFrameBackground",
-            edgeFile = "Interface\\ChatFrame\\ChatFrameBackground",
+            bgFile = MessageBox.textures.chatBg,
+            edgeFile = MessageBox.textures.chatBg,
             tile = false, tileSize = 0, edgeSize = 1,
             insets = {left = 2, right = 2, top = 2, bottom = 2}
         },
