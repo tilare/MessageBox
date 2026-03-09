@@ -4,26 +4,51 @@
 -- Who lookups
 function MessageBox:AddToWhoQueue(name)
     if not MessageBox.settings.backgroundWho then return end
-    if MessageBox:IsFriend(name) then return end
-    if MessageBox.playerCache[name] and MessageBox.playerCache[name].class then return end
+    if MessageBox.playerCache[name] and MessageBox.playerCache[name].class and MessageBox.playerCache[name].guild ~= nil then return end
+    local nameLower = string.lower(name)
     for _, entry in ipairs(MessageBox.whoQueue) do
-        if string.lower(entry.name) == string.lower(name) then return end
+        if string.lower(entry.name) == nameLower then return end
     end
-    table.insert(MessageBox.whoQueue, { name = name, attempts = 0 })
+    -- Cap queue size to prevent unbounded growth
+    if table.getn(MessageBox.whoQueue) >= MessageBox.WHO_QUEUE_MAX then
+        table.remove(MessageBox.whoQueue, 1)
+    end
+    table.insert(MessageBox.whoQueue, { name = name, nameLower = nameLower, attempts = 0 })
 end
 
 function MessageBox:ProcessWhoQueue()
     if not MessageBox.settings.backgroundWho then return end
-    if table.getn(MessageBox.whoQueue) == 0 or MessageBox.waitingForWhoResult then return end
-    if FriendsFrame and FriendsFrame:IsVisible() then return end
     
     local now = GetTime()
+    
+    -- Timeout: if we've been waiting too long for a WHO result, reset
+    if MessageBox.waitingForWhoResult then
+        if (now - MessageBox.waitingForWhoSince) > MessageBox.WHO_TIMEOUT then
+            -- Re-queue the entry if it has attempts left
+            if MessageBox.currentWhoEntry then
+                MessageBox.currentWhoEntry.attempts = MessageBox.currentWhoEntry.attempts + 1
+                if MessageBox.currentWhoEntry.attempts < 5 then
+                    table.insert(MessageBox.whoQueue, MessageBox.currentWhoEntry)
+                end
+            end
+            MessageBox.waitingForWhoResult = false
+            MessageBox.currentWhoEntry = nil
+            -- Reset the cooldown timer so we don't immediately fire again
+            MessageBox.whoTimer = now
+        end
+        return
+    end
+    
+    if table.getn(MessageBox.whoQueue) == 0 then return end
+    if FriendsFrame and FriendsFrame:IsVisible() then return end
+    if WhoFrame and WhoFrame:IsVisible() then return end
+    
     if (now - MessageBox.whoTimer) < MessageBox.WHO_INTERVAL then return end
     
     local entry = MessageBox.whoQueue[1]
     local name = entry.name
     
-    if MessageBox.playerCache[name] and MessageBox.playerCache[name].class then 
+    if MessageBox.playerCache[name] and MessageBox.playerCache[name].class and MessageBox.playerCache[name].guild ~= nil then 
         table.remove(MessageBox.whoQueue, 1)
         return 
     end
@@ -32,6 +57,7 @@ function MessageBox:ProcessWhoQueue()
     
     MessageBox.whoTimer = now
     MessageBox.waitingForWhoResult = true
+    MessageBox.waitingForWhoSince = now
     MessageBox.currentWhoEntry = entry
     SendWho("n-" .. name)
 end
@@ -50,12 +76,18 @@ function MessageBox:HandleWhoResult()
             
             MessageBox.playerCache[name].level = level
             MessageBox.playerCache[name].class = class
+            MessageBox.playerCache[name].classUpper = class and string.upper(class) or nil
             MessageBox.playerCache[name].race = race
             MessageBox.playerCache[name].guild = guild
             MessageBox.playerCache[name].zone = zone
+            -- Preserve existing status (AFK/DND) from friend list data
+            -- WHO results do not include status, so we don't overwrite it
             
-            if MessageBox.currentWhoEntry and string.lower(name) == string.lower(MessageBox.currentWhoEntry.name) then
-                found = true
+            if MessageBox.currentWhoEntry then
+                local targetLower = MessageBox.currentWhoEntry.nameLower or string.lower(MessageBox.currentWhoEntry.name)
+                if string.lower(name) == targetLower then
+                    found = true
+                end
             end
         end
     end
@@ -73,7 +105,7 @@ function MessageBox:HandleWhoResult()
     MessageBox.currentWhoEntry = nil
     
     if MessageBox.frame and MessageBox.frame:IsVisible() then
-        MessageBox:UpdateContactList()
+        MessageBox:MarkContactListDirty()
         if MessageBox.selectedContact then
             MessageBox:UpdateChatHeader()
         end
@@ -139,43 +171,40 @@ end
 -- Message storage
 
 function MessageBox:AddMessage(contact, message, isOutgoing)
-    if not MessageBox.conversations then return end
+    if not self.conversations then return end
 
-    if not MessageBox.conversations[contact] then
-        MessageBox.conversations[contact] = {
-            messages = {},
-            times = {},
-            outgoing = {},
-            system = {},
-            pinned = false
-        }
+    if not self.conversations[contact] then
+        self.conversations[contact] = self:NewConversation()
     end
 
-    local c = MessageBox.conversations[contact]
+    local c = self.conversations[contact]
     
     table.insert(c.messages, message)
     table.insert(c.times, time())
     table.insert(c.outgoing, isOutgoing)
     table.insert(c.system, false)
+    c.count = (c.count or 0) + 1
+    
+    -- New message changes sort order; invalidate format cache for this message
+    MessageBox.conversationOrderDirty = true
 
     -- Update popouts
-    if MessageBox.detachedWindows[contact] and MessageBox.detachedWindows[contact]:IsVisible() then
-        local win = MessageBox.detachedWindows[contact]
-        local total = table.getn(c.messages)
-        win.scrollBar:SetMinMaxValues(1, total)
-        win.scrollBar:SetValue(total) 
+    if self.detachedWindows[contact] and self.detachedWindows[contact]:IsVisible() then
+        local win = self.detachedWindows[contact]
+        win.scrollBar:SetMinMaxValues(1, c.count)
+        win.scrollBar:SetValue(c.count) 
     end
 
     if not isOutgoing then
-        local detachedOpen = (MessageBox.detachedWindows[contact] and MessageBox.detachedWindows[contact]:IsVisible())
-        local mainOpen = (MessageBox.frame and MessageBox.frame:IsVisible() and MessageBox.selectedContact == contact)
+        local detachedOpen = (self.detachedWindows[contact] and self.detachedWindows[contact]:IsVisible())
+        local mainOpen = (self.frame and self.frame:IsVisible() and self.selectedContact == contact)
         
         if not mainOpen and not detachedOpen then
-            if not MessageBox.unreadCounts[contact] then
-                MessageBox.unreadCounts[contact] = 0
+            if not self.unreadCounts[contact] then
+                self.unreadCounts[contact] = 0
             end
-            MessageBox.unreadCounts[contact] = MessageBox.unreadCounts[contact] + 1
-            MessageBox:UpdateMinimapBadge()
+            self.unreadCounts[contact] = self.unreadCounts[contact] + 1
+            self:UpdateMinimapBadge()
             
             if self.settings.popupNotificationsEnabled and (not self.frame or not self.frame:IsVisible()) then
                 self:ShowNotificationPopup()
@@ -183,34 +212,28 @@ function MessageBox:AddMessage(contact, message, isOutgoing)
         end
     end
 
-    if MessageBox.frame and MessageBox.frame:IsVisible() then
-        MessageBox:UpdateContactList()
-        if MessageBox.selectedContact == contact then
-            local timeFmt = MessageBox.settings.use12HourFormat and "%I:%M %p" or "%H:%M"
-            local lastIdx = table.getn(c.times)
+    if self.frame and self.frame:IsVisible() then
+        self:MarkContactListDirty()
+        if self.selectedContact == contact then
+            local timeFmt = self.settings.use12HourFormat and "%I:%M %p" or "%H:%M"
+            local lastIdx = c.count
             local timeString = "|cff808080[" .. date(timeFmt, c.times[lastIdx]) .. "]|r"
             local nameColor = isOutgoing and "|cff8080ff" or "|cffff80ff"
-            local name = isOutgoing and "You" or MessageBox.selectedContact
+            local name = isOutgoing and "You" or self.selectedContact
 
-            local cleanMessage = MessageBox:HandleLink(message)
+            local cleanMessage = self:HandleLink(message)
             local formattedMessage = string.format("%s %s%s:|r %s%s|r", timeString, nameColor, name, "|cffffffff", cleanMessage)
             
-            MessageBox.chatHistory:AddMessage(formattedMessage)
-            MessageBox.chatHistory:ScrollToBottom()
-            MessageBox:UpdateChatHeader()
+            self.chatHistory:AddMessage(formattedMessage)
+            self.chatHistory:ScrollToBottom()
+            self:UpdateChatHeader()
         end
     end
 end
 
 function MessageBox:AddSystemMessage(contact, message, isTransient)
     if not self.conversations[contact] then
-        self.conversations[contact] = {
-            messages = {},
-            times = {},
-            outgoing = {},
-            system = {},
-            pinned = false
-        }
+        self.conversations[contact] = self:NewConversation()
     end
 
     local c = self.conversations[contact]
@@ -218,16 +241,32 @@ function MessageBox:AddSystemMessage(contact, message, isTransient)
     table.insert(c.times, time())
     table.insert(c.outgoing, false)
     table.insert(c.system, true)
+    c.count = (c.count or 0) + 1
+
+    -- New message changes sort order
+    MessageBox.conversationOrderDirty = true
 
     if self.detachedWindows[contact] and self.detachedWindows[contact]:IsVisible() then
         local win = self.detachedWindows[contact]
-        local total = table.getn(c.messages)
-        win.scrollBar:SetMinMaxValues(1, total)
-        win.scrollBar:SetValue(total)
+        win.scrollBar:SetMinMaxValues(1, c.count)
+        win.scrollBar:SetValue(c.count)
     end
 
     if self.frame and self.frame:IsVisible() and self.selectedContact == contact then
-        self:UpdateChatHistory()
+        local timeFmt = self.settings.use12HourFormat and "%I:%M %p" or "%H:%M"
+        local lastIdx = c.count
+        local timeString = "|cff808080[" .. date(timeFmt, c.times[lastIdx]) .. "]|r"
+        local formattedMessage = string.format("%s %s%s|r", timeString, "|cffffcc00", message)
+
+        self.chatHistory:AddMessage(formattedMessage)
+        self.chatHistory:ScrollToBottom()
+
+        if self.chatScrollBar then
+            self.chatScrollBar.isUpdating = true
+            self.chatScrollBar:SetMinMaxValues(1, c.count)
+            self.chatScrollBar:SetValue(c.count)
+            self.chatScrollBar.isUpdating = false
+        end
     end
 end
 
@@ -235,13 +274,12 @@ function MessageBox:RemoveLastMessage(contact)
     if not self.conversations or not self.conversations[contact] then return end
     
     local c = self.conversations[contact]
-    if c.messages then
-        local count = table.getn(c.messages)
-        if count > 0 then
-            table.remove(c.messages)
-            table.remove(c.times)
-            table.remove(c.outgoing)
-            table.remove(c.system)
-        end
+    local count = c.count or table.getn(c.messages)
+    if count > 0 then
+        table.remove(c.messages)
+        table.remove(c.times)
+        table.remove(c.outgoing)
+        table.remove(c.system)
+        c.count = count - 1
     end
 end

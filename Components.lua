@@ -12,25 +12,25 @@ function MessageBox:CreateMinimapButton()
     button:SetHeight(32)
     button:SetFrameStrata("LOW")
     button:SetToplevel(true)
-    button:SetHighlightTexture("Interface\\Minimap\\UI-Minimap-ZoomButton-Highlight")
+    button:SetHighlightTexture(MessageBox.textures.minimapZoomHi)
     button:SetPoint("TOPLEFT", Minimap, "TOPLEFT") 
 
     local icon = button:CreateTexture(nil, "BACKGROUND")
-    icon:SetTexture("Interface\\Icons\\INV_Letter_15")
+    icon:SetTexture(MessageBox.textures.iconLetter)
     icon:SetWidth(20)
     icon:SetHeight(20)
     icon:SetPoint("CENTER", button, "CENTER", 0, 0)
     icon:SetTexCoord(0.05, 0.95, 0.05, 0.95)
     
     local border = button:CreateTexture(nil, "OVERLAY")
-    border:SetTexture("Interface\\Minimap\\MiniMap-TrackingBorder")
+    border:SetTexture(MessageBox.textures.minimapBorder)
     border:SetWidth(52)
     border:SetHeight(52)
     border:SetPoint("TOPLEFT", button, "TOPLEFT", 0, 0)
 
     -- Badge
     local badge = button:CreateTexture(nil, "OVERLAY")
-    badge:SetTexture("Interface\\WorldMap\\WorldMapPartyIcon") 
+    badge:SetTexture(MessageBox.textures.partyIcon) 
     badge:SetVertexColor(1, 0, 0)
     badge:SetWidth(16)
     badge:SetHeight(16)
@@ -39,7 +39,7 @@ function MessageBox:CreateMinimapButton()
     button.badge = badge
 
     local countText = button:CreateFontString(nil, "OVERLAY")
-    countText:SetFont("Fonts\\FRIZQT__.TTF", 10, "OUTLINE")
+    countText:SetFont(MessageBox.fonts.frizqt, 10, "OUTLINE")
     countText:SetPoint("CENTER", badge, "CENTER", 0, 0)
     countText:SetTextColor(1, 1, 1)
     countText:Hide()
@@ -155,18 +155,22 @@ end
 
 -- Settings
 
+function MessageBox:EnsureThemeBlocker()
+    if self.themeBlocker then return end
+    if not self.frame then return end
+    local blocker = CreateFrame("Frame", "MessageBoxThemeBlocker", self.frame)
+    blocker:SetAllPoints(self.frame)
+    blocker:SetFrameStrata("DIALOG")
+    blocker:EnableMouse(true)
+    blocker:SetBackdrop({bgFile = MessageBox.textures.white8x8})
+    blocker:SetBackdropColor(0, 0, 0, 0.4)
+    blocker:Hide()
+    self.themeBlocker = blocker
+end
+
 function MessageBox:ShowSettingsFrame()
     if not self.settingsFrame then
-        if not self.themeBlocker then
-            local blocker = CreateFrame("Frame", "MessageBoxThemeBlocker", self.frame)
-            blocker:SetAllPoints(self.frame)
-            blocker:SetFrameStrata("DIALOG")
-            blocker:EnableMouse(true)
-            blocker:SetBackdrop({bgFile = "Interface\\Buttons\\WHITE8x8"})
-            blocker:SetBackdropColor(0, 0, 0, 0.4)
-            blocker:Hide()
-            self.themeBlocker = blocker
-        end
+        self:EnsureThemeBlocker()
         
         local f = CreateFrame("Frame", "MessageBoxSettingsFrame", UIParent)
         f:SetWidth(200)
@@ -192,8 +196,8 @@ function MessageBox:ShowSettingsFrame()
         end)
         
         f:SetBackdrop({
-            bgFile = "Interface\\DialogFrame\\UI-DialogBox-Background",
-            edgeFile = "Interface\\DialogFrame\\UI-DialogBox-Border",
+            bgFile = MessageBox.textures.dialogBg,
+            edgeFile = MessageBox.textures.dialogBorder,
             tile = true, tileSize = 32, edgeSize = 32,
             insets = { left = 11, right = 12, top = 12, bottom = 11 }
         })
@@ -270,7 +274,7 @@ function MessageBox:ShowSettingsFrame()
         
         getglobal(fontSlider:GetName().."Low"):SetText("8")
         getglobal(fontSlider:GetName().."High"):SetText("24")
-        getglobal(fontSlider:GetName().."Text"):SetText("Chat Font Size: " .. (MessageBox.settings.chatFontSize or 12))
+        getglobal(fontSlider:GetName().."Text"):SetText("Chat Font Size: " .. (MessageBox.settings.chatFontSize or MessageBox.defaultSettings.chatFontSize))
         
         fontSlider:SetScript("OnValueChanged", function()
              local val = math.floor(arg1)
@@ -279,7 +283,7 @@ function MessageBox:ShowSettingsFrame()
              MessageBox:ApplyChatFontSize()
         end)
         
-        fontSlider:SetValue(MessageBox.settings.chatFontSize or 12)
+        fontSlider:SetValue(MessageBox.settings.chatFontSize or MessageBox.defaultSettings.chatFontSize)
         f.fontSlider = fontSlider
 
         local close = CreateFrame("Button", nil, f, "UIPanelCloseButton")
@@ -321,8 +325,8 @@ function MessageBox:ShowCopyPopup(url)
         f:SetScript("OnDragStop", function() this:StopMovingOrSizing() end)
         
         f:SetBackdrop({
-            bgFile = "Interface\\DialogFrame\\UI-DialogBox-Background",
-            edgeFile = "Interface\\DialogFrame\\UI-DialogBox-Border",
+            bgFile = MessageBox.textures.dialogBg,
+            edgeFile = MessageBox.textures.dialogBorder,
             tile = true, tileSize = 32, edgeSize = 32,
             insets = { left = 11, right = 12, top = 12, bottom = 11 }
         })
@@ -386,11 +390,13 @@ function MessageBox:InitializeMenu(level)
     info.func = function() TargetByName(name, true) end
     UIDropDownMenu_AddButton(info, level)
 
-    info = {}
-    info.text = "Add Friend"
-    info.notCheckable = 1
-    info.func = function() AddFriend(name) end
-    UIDropDownMenu_AddButton(info, level)
+    if not MessageBox:IsFriend(name) then
+        info = {}
+        info.text = "Add Friend"
+        info.notCheckable = 1
+        info.func = function() AddFriend(name) end
+        UIDropDownMenu_AddButton(info, level)
+    end
 
     info = {}
     info.text = "Ignore"
@@ -412,6 +418,7 @@ function MessageBox:InitializeMenu(level)
     info.func = function() 
         if MessageBox.conversations[name] then
             MessageBox.conversations[name].pinned = not MessageBox.conversations[name].pinned
+            MessageBox.conversationOrderDirty = true
             if MessageBox.selectedContact == name then
                 MessageBox:UpdateChatHeader()
             end
@@ -514,8 +521,8 @@ function MessageBox:ToggleNotificationMenu()
         f:SetFrameStrata("FULLSCREEN_DIALOG")
         f:SetToplevel(true)
         f:SetBackdrop({
-            bgFile = "Interface\\DialogFrame\\UI-DialogBox-Background",
-            edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
+            bgFile = MessageBox.textures.dialogBg,
+            edgeFile = MessageBox.textures.tooltipBorder,
             tile = true, tileSize = 16, edgeSize = 16,
             insets = { left = 4, right = 4, top = 4, bottom = 4 }
         })
@@ -537,7 +544,7 @@ function MessageBox:ToggleNotificationMenu()
                 row = CreateFrame("Button", nil, f)
                 row:SetHeight(20)
                 row:SetWidth(140)
-                row:SetHighlightTexture("Interface\\QuestFrame\\UI-QuestTitleHighlight")
+                row:SetHighlightTexture(MessageBox.textures.questHighlight)
                 
                 local text = row:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
                 text:SetPoint("LEFT", row, "LEFT", 5, 0)
@@ -561,7 +568,7 @@ function MessageBox:ToggleNotificationMenu()
             
             local display = name
             if MessageBox.playerCache[name] and MessageBox.playerCache[name].class then
-                 local c = RAID_CLASS_COLORS[string.upper(MessageBox.playerCache[name].class)]
+                 local c = RAID_CLASS_COLORS[MessageBox.playerCache[name].classUpper]
                  if c then display = string.format("|cff%02x%02x%02x%s|r", c.r*255, c.g*255, c.b*255, name) end
             end
             
@@ -592,35 +599,35 @@ function MessageBox:UpdateNotificationVisuals()
     local popup = self.notificationPopup
     
     if self.settings.modernTheme then
-        popup:SetNormalTexture("Interface\\AddOns\\MessageBox\\img\\envelope-solid.tga")
-        popup:SetPushedTexture("Interface\\AddOns\\MessageBox\\img\\envelope-solid.tga")
+        popup:SetNormalTexture(MessageBox.textures.envelope)
+        popup:SetPushedTexture(MessageBox.textures.envelope)
         popup:SetWidth(40)
         popup:SetHeight(40)
         
-        popup.badge:SetTexture("Interface\\AddOns\\MessageBox\\img\\square-solid.tga")
+        popup.badge:SetTexture(MessageBox.textures.squareSolid)
         popup.badge:SetVertexColor(0.9, 0.1, 0.1) 
         popup.badge:SetWidth(14) 
         popup.badge:SetHeight(14) 
         popup.badge:ClearAllPoints()
         popup.badge:SetPoint("TOPRIGHT", popup, "TOPRIGHT", -4, -6) 
         
-        popup.countText:SetFont("Fonts\\FRIZQT__.TTF", 10, "OUTLINE")
+        popup.countText:SetFont(MessageBox.fonts.frizqt, 10, "OUTLINE")
         popup.countText:SetTextColor(1, 1, 1)
         popup.countText:SetPoint("CENTER", popup.badge, "CENTER", 0, 0)
     else
-        popup:SetNormalTexture("Interface\\ChatFrame\\UI-ChatIcon-Chat-Up")
-        popup:SetPushedTexture("Interface\\ChatFrame\\UI-ChatIcon-Chat-Down")
+        popup:SetNormalTexture(MessageBox.textures.chatUp)
+        popup:SetPushedTexture(MessageBox.textures.chatDown)
         popup:SetWidth(32)
         popup:SetHeight(32)
         
-        popup.badge:SetTexture("Interface\\WorldMap\\WorldMapPartyIcon")
+        popup.badge:SetTexture(MessageBox.textures.partyIcon)
         popup.badge:SetVertexColor(1, 0, 0)
         popup.badge:SetWidth(16)
         popup.badge:SetHeight(16)
         popup.badge:ClearAllPoints()
         popup.badge:SetPoint("TOPRIGHT", popup, "TOPRIGHT", -2, -2)
         
-        popup.countText:SetFont("Fonts\\FRIZQT__.TTF", 10, "OUTLINE")
+        popup.countText:SetFont(MessageBox.fonts.frizqt, 10, "OUTLINE")
         popup.countText:SetPoint("CENTER", popup.badge, "CENTER", 0, 0)
     end
 end
@@ -687,14 +694,14 @@ function MessageBox:CreateNotificationPopup()
     end)
     
     local highlight = popup:CreateTexture(nil, "OVERLAY") 
-    highlight:SetTexture("Interface\\ChatFrame\\UI-ChatIcon-BlinkHilight")
+    highlight:SetTexture(MessageBox.textures.chatBlink)
     highlight:SetAllPoints(popup)
     highlight:SetBlendMode("ADD")
     highlight:SetAlpha(0)
     popup.highlight = highlight
     
     local badge = popup:CreateTexture(nil, "OVERLAY")
-    badge:SetTexture("Interface\\WorldMap\\WorldMapPartyIcon") 
+    badge:SetTexture(MessageBox.textures.partyIcon) 
     badge:SetVertexColor(1, 0, 0)
     badge:SetWidth(16)
     badge:SetHeight(16)
@@ -703,7 +710,7 @@ function MessageBox:CreateNotificationPopup()
     popup.badge = badge
 
     local countText = popup:CreateFontString(nil, "OVERLAY")
-    countText:SetFont("Fonts\\FRIZQT__.TTF", 10, "OUTLINE")
+    countText:SetFont(MessageBox.fonts.frizqt, 10, "OUTLINE")
     countText:SetPoint("CENTER", badge, "CENTER", 0, 0)
     countText:SetTextColor(1, 1, 1)
     countText:Hide()
@@ -714,7 +721,7 @@ function MessageBox:CreateNotificationPopup()
         this.highlight:SetAlpha(0)
 
         if MessageBox.settings.modernTheme then
-            this:SetNormalTexture("Interface\\AddOns\\MessageBox\\img\\envelope-solid-open.tga")
+            this:SetNormalTexture(MessageBox.textures.envelopeOpen)
         end
 
         GameTooltip:SetOwner(this, "ANCHOR_LEFT")
@@ -726,7 +733,7 @@ function MessageBox:CreateNotificationPopup()
                 hasLines = true
                 local color = {1, 1, 1}
                 if MessageBox.playerCache[name] and MessageBox.playerCache[name].class then
-                    local c = RAID_CLASS_COLORS[string.upper(MessageBox.playerCache[name].class)]
+                    local c = RAID_CLASS_COLORS[MessageBox.playerCache[name].classUpper]
                     if c then color = {c.r, c.g, c.b} end
                 end
                 GameTooltip:AddDoubleLine(name, count, color[1], color[2], color[3], 1, 1, 1)
@@ -746,7 +753,7 @@ function MessageBox:CreateNotificationPopup()
     
     popup:SetScript("OnLeave", function()
         if MessageBox.settings.modernTheme then
-            this:SetNormalTexture("Interface\\AddOns\\MessageBox\\img\\envelope-solid.tga")
+            this:SetNormalTexture(MessageBox.textures.envelope)
         end
         GameTooltip:Hide()
     end)
@@ -835,6 +842,7 @@ function MessageBox:ConfirmDelete()
     self.conversations[self.selectedContact] = nil
     if self.unreadCounts then self.unreadCounts[self.selectedContact] = nil end
     self.selectedContact = nil
+    MessageBox.conversationOrderDirty = true
     self:UpdateChatHeader()
     self:UpdateContactList()
     self:UpdateChatHistory()
@@ -856,6 +864,8 @@ function MessageBox:ConfirmDeleteAll()
         if MessageBox.unreadCounts then MessageBox.unreadCounts[contact] = nil end
         deletedCount = deletedCount + 1
     end
+    
+    MessageBox.conversationOrderDirty = true
     
     if self.selectedContact and not self.conversations[self.selectedContact] then
         self.selectedContact = nil
@@ -882,18 +892,13 @@ function MessageBox:OpenDetachedWindow(contact)
     end
 
     if not self.conversations[contact] then
-        self.conversations[contact] = {
-            messages = {},
-            times = {},
-            outgoing = {},
-            system = {},
-            pinned = false
-        }
+        self.conversations[contact] = self:NewConversation()
     end
 
     local f = CreateFrame("Frame", "MessageBoxDetached_"..contact, UIParent)
-    f:SetWidth(300)
-    f:SetHeight(250)
+    local L = MessageBox.layout
+    f:SetWidth(L.DETACHED_WIDTH)
+    f:SetHeight(L.DETACHED_HEIGHT)
     
     local cascadeIndex = 0
     if self.detachedWindows then
@@ -912,12 +917,12 @@ function MessageBox:OpenDetachedWindow(contact)
     f:SetMovable(true)
     f:EnableMouse(true)
     f:SetResizable(true)
-    f:SetMinResize(200, 150)
-    f:SetMaxResize(600, 600)
+    f:SetMinResize(L.DETACHED_MIN_W, L.DETACHED_MIN_H)
+    f:SetMaxResize(L.DETACHED_MAX_W, L.DETACHED_MAX_H)
     
     f:SetBackdrop({
-        bgFile = "Interface\\DialogFrame\\UI-DialogBox-Background",
-        edgeFile = "Interface\\DialogFrame\\UI-DialogBox-Border",
+        bgFile = MessageBox.textures.dialogBg,
+        edgeFile = MessageBox.textures.dialogBorder,
         tile = true, tileSize = 32, edgeSize = 32,
         insets = { left = 11, right = 12, top = 12, bottom = 11 }
     })
@@ -945,7 +950,7 @@ function MessageBox:OpenDetachedWindow(contact)
     local displayTitle = contact
     local cache = self.playerCache[contact]
     if cache and cache.class then
-        local color = RAID_CLASS_COLORS[string.upper(cache.class)]
+        local color = RAID_CLASS_COLORS[cache.classUpper]
         if color then
             displayTitle = string.format("|cff%02x%02x%02x%s|r", color.r*255, color.g*255, color.b*255, contact)
         end
@@ -964,9 +969,9 @@ function MessageBox:OpenDetachedWindow(contact)
     resizeButton:SetWidth(16)
     resizeButton:SetHeight(16)
     resizeButton:SetPoint("BOTTOMRIGHT", f, "BOTTOMRIGHT", -4, 4)
-    resizeButton:SetNormalTexture("Interface\\AddOns\\MessageBox\\img\\sizegrabber-up.tga")
-    resizeButton:SetPushedTexture("Interface\\AddOns\\MessageBox\\img\\sizegrabber-down.tga")
-    resizeButton:SetHighlightTexture("Interface\\AddOns\\MessageBox\\img\\sizegrabber-highlight.tga")
+    resizeButton:SetNormalTexture(MessageBox.textures.sizeUp)
+    resizeButton:SetPushedTexture(MessageBox.textures.sizeDown)
+    resizeButton:SetHighlightTexture(MessageBox.textures.sizeHi)
     resizeButton:SetScript("OnMouseDown", function() this:GetParent():StartSizing("BOTTOMRIGHT") end)
     resizeButton:SetScript("OnMouseUp", function() this:GetParent():StopMovingOrSizing() end)
 
@@ -1001,7 +1006,7 @@ function MessageBox:OpenDetachedWindow(contact)
     history:SetPoint("TOPLEFT", f, "TOPLEFT", 15, -30)
     history:SetPoint("BOTTOMRIGHT", inputBackdrop, "TOPRIGHT", -22, 5)
     
-    history:SetFont("Fonts\\FRIZQT__.TTF", MessageBox.settings.chatFontSize or 12, "OUTLINE")
+    history:SetFont(MessageBox.fonts.frizqt, MessageBox.settings.chatFontSize or MessageBox.defaultSettings.chatFontSize, "OUTLINE")
     history:SetShadowOffset(1, -1)
     
     history:SetJustifyH("LEFT")
@@ -1033,52 +1038,37 @@ function MessageBox:OpenDetachedWindow(contact)
         local c = MessageBox.conversations[self.contact]
         if not c or not c.messages then return end
         
-        local totalMessages = table.getn(c.messages)
+        local totalMessages = MessageBox:GetCount(c)
         
         if totalMessages == 0 then
             self.history:Clear()
             return
         end
         
-        local displayLimit = 100
-        
         local anchorIndex = self.scrollBar:GetValue()
         if anchorIndex > totalMessages then anchorIndex = totalMessages end
         if anchorIndex < 1 then anchorIndex = 1 end
         
-        local startIndex = anchorIndex - displayLimit
-        if startIndex < 1 then startIndex = 1 end
-        
-        self.history:Clear()
-        
-        local timeFmt = MessageBox.settings.use12HourFormat and "%I:%M %p" or "%H:%M"
-        
-        for i = startIndex, anchorIndex do
-            local msg = c.messages[i]
-            local timeVal = c.times[i]
-            local isOutgoing = c.outgoing[i]
-            local isSystem = c.system[i]
-            
-            local timeString = type(timeVal) == "number" and date(timeFmt, timeVal) or tostring(timeVal)
-            timeString = "|cff808080[" .. timeString .. "]|r"
-            
-            if isSystem then
-                self.history:AddMessage(string.format("%s %s%s|r", timeString, "|cffffcc00", msg))
-            else
-                local cleanMessage = MessageBox:HandleLink(msg)
-                local nameColor = isOutgoing and "|cff8080ff" or "|cffff80ff"
-                local name = isOutgoing and "You" or self.contact
-                self.history:AddMessage(string.format("%s %s%s:|r %s%s|r", timeString, nameColor, name, "|cffffffff", cleanMessage))
-            end
-        end
-        
-        self.history:ScrollToBottom()
+        MessageBox:RenderMessages(self.history, self.contact, anchorIndex, nil)
     end
 
     sb:SetScript("OnValueChanged", function()
         if not this.isUpdating then
-            f:UpdateDisplay()
+            f.renderDirty = true
         end
+    end)
+    
+    -- Throttled render via OnUpdate
+    f.renderDirty = false
+    f.lastRenderTime = 0
+    
+    history:SetScript("OnUpdate", function()
+        if not f.renderDirty then return end
+        local now = GetTime()
+        if (now - f.lastRenderTime) < MessageBox.RENDER_THROTTLE then return end
+        f.renderDirty = false
+        f.lastRenderTime = now
+        f:UpdateDisplay()
     end)
     
     history:SetScript("OnMouseWheel", function()
@@ -1105,7 +1095,7 @@ function MessageBox:OpenDetachedWindow(contact)
     -- Init contents
     local c = self.conversations[contact]
     if c and c.messages then
-        local total = table.getn(c.messages)
+        local total = MessageBox:GetCount(c)
         if total == 0 then total = 1 end
         sb.isUpdating = true
         sb:SetMinMaxValues(1, total)
