@@ -25,7 +25,7 @@ Modern Messenger-style addon to handle your whispers
 
  **Linking Support -** Supports item linking and web links.
 
- **Pin System -** Pin a conversation to prevent it from being deleted.
+ **Pin System -** Pin a conversation to prevent it from being deleted, and keeps it at the top of your conversation list.
 
  **Conversation Management –** Delete individual chats or clear your entire history at once.
 
