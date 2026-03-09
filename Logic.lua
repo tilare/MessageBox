@@ -9,7 +9,7 @@ function MessageBox:AddToWhoQueue(name)
     for _, entry in ipairs(MessageBox.whoQueue) do
         if string.lower(entry.name) == nameLower then return end
     end
-    -- Cap queue size to prevent unbounded growth
+    -- Cap queue size
     if table.getn(MessageBox.whoQueue) >= MessageBox.WHO_QUEUE_MAX then
         table.remove(MessageBox.whoQueue, 1)
     end
@@ -33,7 +33,7 @@ function MessageBox:ProcessWhoQueue()
             end
             MessageBox.waitingForWhoResult = false
             MessageBox.currentWhoEntry = nil
-            -- Reset the cooldown timer so we don't immediately fire again
+            -- Reset the cooldown timer so it doesnt immediately fire again
             MessageBox.whoTimer = now
         end
         return
@@ -80,8 +80,6 @@ function MessageBox:HandleWhoResult()
             MessageBox.playerCache[name].race = race
             MessageBox.playerCache[name].guild = guild
             MessageBox.playerCache[name].zone = zone
-            -- Preserve existing status (AFK/DND) from friend list data
-            -- WHO results do not include status, so we don't overwrite it
             
             if MessageBox.currentWhoEntry then
                 local targetLower = MessageBox.currentWhoEntry.nameLower or string.lower(MessageBox.currentWhoEntry.name)
@@ -185,7 +183,6 @@ function MessageBox:AddMessage(contact, message, isOutgoing)
     table.insert(c.system, false)
     c.count = (c.count or 0) + 1
     
-    -- New message changes sort order; invalidate format cache for this message
     MessageBox.conversationOrderDirty = true
 
     -- Update popouts
@@ -282,4 +279,5 @@ function MessageBox:RemoveLastMessage(contact)
         table.remove(c.system)
         c.count = count - 1
     end
+
 end
