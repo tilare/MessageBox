@@ -13,6 +13,8 @@ Modern Messenger-style addon to handle your whispers
 
  **Intercept Whispers -** Let MessageBox intercept whisper commands in UI or chat, opening up to who you were trying to whisper. 
 
+ **Chat Search -** Search through your chat logs with the search bar
+
  **Modern and Classic Themes -** Toggle the Classic theme for a more Blizzard-style UI.
 
  **Background Who Queue -** Toggle to enable a /who lookup on a 30 second cooldown that runs in the background to fill out information for your contacts that you do not have added as a friend.
