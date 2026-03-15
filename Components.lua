@@ -28,7 +28,7 @@ function MessageBox:CreateMinimapButton()
     border:SetHeight(52)
     border:SetPoint("TOPLEFT", button, "TOPLEFT", 0, 0)
 
-    -- Badge
+     Badge
     local badge = button:CreateTexture(nil, "OVERLAY")
     badge:SetTexture(MessageBox.textures.partyIcon) 
     badge:SetVertexColor(1, 0, 0)
@@ -116,7 +116,7 @@ function MessageBox:UpdateMinimapPosition()
 end
 
 function MessageBox:UpdateMinimapBadge()
-    -- Sync counts on button and popup
+     Sync counts on button and popup
     local totalUnread = 0
     if MessageBox.unreadCounts then
         for contact, count in pairs(MessageBox.unreadCounts) do
@@ -124,7 +124,7 @@ function MessageBox:UpdateMinimapBadge()
         end
     end
     
-    -- Minimap button
+     Minimap button
     if self.minimapButton then
         if totalUnread > 0 then
             self.minimapButton.badge:Show()
@@ -136,7 +136,7 @@ function MessageBox:UpdateMinimapBadge()
         end
     end
 
-    -- Notification popup
+     Notification popup
     if self.notificationPopup then
         if totalUnread > 0 and self.settings.popupNotificationsEnabled then
             self.notificationPopup:Show()
@@ -153,7 +153,7 @@ function MessageBox:UpdateMinimapBadge()
     end
 end
 
--- Settings
+ Settings
 
 function MessageBox:EnsureThemeBlocker()
     if self.themeBlocker then return end
@@ -206,7 +206,7 @@ function MessageBox:ShowSettingsFrame()
         title:SetPoint("TOP", 0, -15)
         title:SetText("Settings")
         
-        -- Checkbox helper
+         Checkbox helper
         local function CreateCheck(label, settingKey, yOffset, func)
             local check = CreateFrame("CheckButton", nil, f, "UICheckButtonTemplate")
             check:SetPoint("TOPLEFT", 20, yOffset)
@@ -244,7 +244,7 @@ function MessageBox:ShowSettingsFrame()
         f.checks["hideOffline"] = CreateCheck("Hide Offline Friends", "hideOffline", yStart + (yStep*3), function() MessageBox:UpdateContactList() end)
         f.checks["use12HourFormat"] = CreateCheck("Use 12-Hour Format", "use12HourFormat", yStart + (yStep*4), function() MessageBox:UpdateChatHistory() end)
         
-        -- Theme toggle
+         Theme toggle
         local themeCheck = CreateFrame("CheckButton", nil, f, "UICheckButtonTemplate")
         themeCheck:SetPoint("TOPLEFT", 20, yStart + (yStep*5))
         themeCheck:SetWidth(24)
@@ -264,7 +264,7 @@ function MessageBox:ShowSettingsFrame()
         end)
         f.checks["theme"] = themeCheck
         
-        -- Font Size Slider
+         Font Size Slider
         local fontSlider = CreateFrame("Slider", "MessageBoxFontSlider", f, "OptionsSliderTemplate")
         fontSlider:SetWidth(160)
         fontSlider:SetHeight(16)
@@ -1092,7 +1092,6 @@ function MessageBox:OpenDetachedWindow(contact)
 
     self.detachedWindows[contact] = f
     
-    -- Init contents
     local c = self.conversations[contact]
     if c and c.messages then
         local total = MessageBox:GetCount(c)
