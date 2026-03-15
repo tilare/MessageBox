@@ -110,7 +110,7 @@ function MessageBox:HandleWhoResult()
             MessageBox.playerCache[name].zone = zone
             MessageBox.playerCache[name].whoInProgress = nil
 
-             Persist class permanently and level if max (60)
+             -- Persist class permanently and level if max (60)
             if class and MessageBox.settings.classCache then
                 if not MessageBox.settings.classCache[name] then
                     MessageBox.settings.classCache[name] = {}
