@@ -44,6 +44,17 @@ function MessageBox:OnLoad()
         if MessageBox.whoElapsed < 1 then return end
         MessageBox.whoElapsed = 0
         MessageBox:ProcessWhoQueue()
+
+        -- Periodic crash save flush
+        if MessageBox.hasNampower then
+            MessageBox.flushElapsed = (MessageBox.flushElapsed or 0) + 1
+            if MessageBox.flushElapsed >= MessageBox.FLUSH_INTERVAL then
+                MessageBox.flushElapsed = 0
+                if MessageBox.crashSaveDirty then
+                    MessageBox:FlushToDisk()
+                end
+            end
+        end
     end)
 
     DEFAULT_CHAT_FRAME:AddMessage("|cff3cb7f0Message|rBox: loaded! Use /messagebox, /mb, or /mbox to open.")
@@ -54,35 +65,6 @@ function MessageBox:OnEvent(event)
         
         if not MessageBoxDB then
             MessageBoxDB = {}
-        end
-
-        local playerName = UnitName("player")
-        local realmName = GetRealmName()
-        local oldKey = playerName .. "-" .. realmName
-
-        if MessageBoxSavedData and MessageBoxSavedData[oldKey] then
-            DEFAULT_CHAT_FRAME:AddMessage("|cff3cb7f0Message|rBox: Upgrading database for " .. playerName .. "...")
-            
-            local oldConversations = MessageBoxSavedData[oldKey]
-            
-            for contact, messages in pairs(oldConversations) do
-                if type(messages) == "table" and table.getn(messages) > 0 then
-                    local soa = MessageBox:NewConversation()
-                    
-                    for i, msg in ipairs(messages) do
-                        table.insert(soa.messages, msg.message or "")
-                        table.insert(soa.times, msg.time or time())
-                        table.insert(soa.outgoing, msg.outgoing or false)
-                        table.insert(soa.system, msg.system or false)
-                    end
-                    soa.count = table.getn(soa.messages)
-                    
-                    MessageBoxDB[contact] = soa
-                end
-            end
-            
-            MessageBoxSavedData[oldKey] = nil
-            DEFAULT_CHAT_FRAME:AddMessage("|cff3cb7f0Message|rBox: Migration complete! Old data removed from global cache.")
         end
 
         MessageBox.conversations = MessageBoxDB
@@ -103,26 +85,94 @@ function MessageBox:OnEvent(event)
         MessageBox.settings = MessageBoxSettings
         MessageBox.unreadCounts = MessageBox.settings.unreadCounts
 
+        -- Detect Nampower file I/O and attempt crash recovery
+        MessageBox.hasNampower = (WriteCustomFile ~= nil and ReadCustomFile ~= nil and CustomFileExists ~= nil)
+        if MessageBox.hasNampower then
+            MessageBox:AttemptCrashRecovery()
+        end
+
+        -- Register PLAYER_LOGOUT to mark a clean exit
+        MessageBox.eventFrame:RegisterEvent("PLAYER_LOGOUT")
+
+        -- Restore persistent GM flags into playerCache
+        if MessageBox.settings.gmList then
+            for name, _ in pairs(MessageBox.settings.gmList) do
+                if not MessageBox.playerCache[name] then
+                    MessageBox.playerCache[name] = {}
+                end
+                MessageBox.playerCache[name].isGM = true
+            end
+        end
+
+        -- Restore persistent class/level data into playerCache
+        if MessageBox.settings.classCache then
+            for name, info in pairs(MessageBox.settings.classCache) do
+                if not MessageBox.playerCache[name] then
+                    MessageBox.playerCache[name] = {}
+                end
+                if info.class then
+                    MessageBox.playerCache[name].class = info.class
+                    MessageBox.playerCache[name].classUpper = info.classUpper
+                end
+                if info.level then
+                    MessageBox.playerCache[name].level = info.level
+                end
+            end
+        end
+
         MessageBox.searchQuery = "" 
         MessageBox:CreateMinimapButton()
 
     elseif event == "CHAT_MSG_WHISPER" then
         local message = arg1
         local sender = arg2
-        MessageBox:AddToWhoQueue(sender)
+        
+        -- arg6 == "GM" means the sender is a Game Master
+        if arg6 == "GM" then
+            if not MessageBox.playerCache[sender] then
+                MessageBox.playerCache[sender] = {}
+            end
+            MessageBox.playerCache[sender].isGM = true
+            -- Persist GM status
+            if MessageBox.settings.gmList then
+                MessageBox.settings.gmList[sender] = true
+            end
+        else
+            MessageBox:AddToWhoQueue(sender)
+        end
+        
         MessageBox:AddMessage(sender, message, false)
 
     elseif event == "CHAT_MSG_WHISPER_INFORM" then
         local message = arg1
         local recipient = arg2
         
-        MessageBox:AddToWhoQueue(recipient) 
+        -- arg6 == "GM" means the recipient is a Game Master
+        if arg6 == "GM" then
+            if not MessageBox.playerCache[recipient] then
+                MessageBox.playerCache[recipient] = {}
+            end
+            MessageBox.playerCache[recipient].isGM = true
+            -- Persist GM status so it survives reload/relog
+            if MessageBox.settings.gmList then
+                MessageBox.settings.gmList[recipient] = true
+            end
+        else
+            MessageBox:AddToWhoQueue(recipient) 
+        end
 
         local convo = MessageBox.conversations[recipient]
         if convo and convo.messages then
             local count = MessageBox:GetCount(convo)
             if count > 0 then
-                if convo.outgoing[count] and convo.messages[count] == message then
+                -- Strip color codes for comparison in case the server
+                -- returns a modified version (TurtleWoW GM whispers)
+                local storedMsg = string.gsub(convo.messages[count], "|c%x%x%x%x%x%x%x%x", "")
+                storedMsg = string.gsub(storedMsg, "|r", "")
+                local incomingMsg = string.gsub(message, "|c%x%x%x%x%x%x%x%x", "")
+                incomingMsg = string.gsub(incomingMsg, "|r", "")
+                
+                if convo.outgoing[count] and storedMsg == incomingMsg then
                     return
                 end
             end
@@ -176,6 +226,10 @@ function MessageBox:OnEvent(event)
                 MessageBox:UpdateChatHeader()
             end
         end
+    
+    elseif event == "PLAYER_LOGOUT" then
+        MessageBox:FlushToDisk()
+        MessageBox:WriteCrashSaveClean()
     end
 end
 
