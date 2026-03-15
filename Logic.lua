@@ -8,10 +8,10 @@ function MessageBox:AddToWhoQueue(name)
     if MessageBox.playerCache[name] and MessageBox.playerCache[name].isGM then return end
     -- Already have complete data (class + guild resolved, even if guild is empty string)
     if MessageBox.playerCache[name] and MessageBox.playerCache[name].class and MessageBox.playerCache[name].guild ~= nil then return end
-    -- Already in-flight — WHO is currently running for this name
+    -- Already in progresss WHO is currently running for this name
     if MessageBox.playerCache[name] and MessageBox.playerCache[name].whoInProgress then return end
     local nameLower = string.lower(name)
-    -- Check if already the current in-flight WHO target
+    -- Check if already the current in progress WHO target
     if MessageBox.currentWhoEntry and MessageBox.currentWhoEntry.nameLower == nameLower then return end
     -- Check if already in the queue
     for _, entry in ipairs(MessageBox.whoQueue) do
@@ -29,17 +29,17 @@ function MessageBox:ProcessWhoQueue()
     
     local now = GetTime()
     
-    -- Timeout: if we've been waiting too long for a WHO result, reset
+    -- Timeout: if waiting too long for a WHO result, reset
     if MessageBox.waitingForWhoResult then
         if (now - MessageBox.waitingForWhoSince) > MessageBox.WHO_TIMEOUT then
             local entry = MessageBox.currentWhoEntry
-            -- Clear the in-progress sentinel
+            -- Clear the in progress
             if entry then
                 if MessageBox.playerCache[entry.name] then
                     MessageBox.playerCache[entry.name].whoInProgress = nil
                 end
                 entry.attempts = entry.attempts + 1
-                -- Only re-queue if under max attempts and not already cached
+                -- Only requeue if under max attempts and not already cached
                 if entry.attempts < 3 then
                     local cache = MessageBox.playerCache[entry.name]
                     if not (cache and cache.class and cache.guild ~= nil) then
@@ -49,7 +49,6 @@ function MessageBox:ProcessWhoQueue()
             end
             MessageBox.waitingForWhoResult = false
             MessageBox.currentWhoEntry = nil
-            -- Reset the cooldown timer so it doesnt immediately fire again
             MessageBox.whoTimer = now
         end
         return
@@ -77,7 +76,6 @@ function MessageBox:ProcessWhoQueue()
     local entry = MessageBox.whoQueue[1]
     table.remove(MessageBox.whoQueue, 1)
     
-    -- Mark this name as in-progress so AddToWhoQueue won't duplicate it
     if not MessageBox.playerCache[entry.name] then
         MessageBox.playerCache[entry.name] = {}
     end
@@ -112,7 +110,7 @@ function MessageBox:HandleWhoResult()
             MessageBox.playerCache[name].zone = zone
             MessageBox.playerCache[name].whoInProgress = nil
 
-            -- Persist class permanently and level if max (60)
+             Persist class permanently and level if max (60)
             if class and MessageBox.settings.classCache then
                 if not MessageBox.settings.classCache[name] then
                     MessageBox.settings.classCache[name] = {}
@@ -131,20 +129,19 @@ function MessageBox:HandleWhoResult()
     end
     
     if not found and targetName then
-        -- Clear the in-progress sentinel
+        -- Clear the in progress
         if MessageBox.playerCache[targetName] then
             MessageBox.playerCache[targetName].whoInProgress = nil
         end
         
         if numWhos == 0 then
             -- Zero results: player is offline or doesn't exist — no point retrying
-            -- Mark guild as empty string so we don't re-queue this name endlessly
+            -- Mark guild as empty string so dont queue this name endlessly
             if not MessageBox.playerCache[targetName] then
                 MessageBox.playerCache[targetName] = {}
             end
             MessageBox.playerCache[targetName].guild = MessageBox.playerCache[targetName].guild or ""
         else
-            -- WHO returned results but target wasn't among them — retry once
             local entry = MessageBox.currentWhoEntry
             entry.attempts = entry.attempts + 1
             if entry.attempts < 2 then
@@ -156,12 +153,10 @@ function MessageBox:HandleWhoResult()
     MessageBox.waitingForWhoResult = false
     MessageBox.currentWhoEntry = nil
     
-    -- Invalidate format cache for this contact so class colors update on next render
     if targetName and MessageBox.conversations and MessageBox.conversations[targetName] then
         MessageBox.conversations[targetName]._fmtCache = nil
     end
     
-    -- Refresh UI if visible
     if MessageBox.frame and MessageBox.frame:IsVisible() then
         MessageBox:MarkContactListDirty()
         if MessageBox.selectedContact then
@@ -169,7 +164,6 @@ function MessageBox:HandleWhoResult()
         end
     end
     
-    -- Also refresh detached windows for this contact
     if targetName and MessageBox.detachedWindows[targetName] and MessageBox.detachedWindows[targetName]:IsVisible() then
         if MessageBox.detachedWindows[targetName].UpdateHeader then
             MessageBox.detachedWindows[targetName]:UpdateHeader()
@@ -193,13 +187,11 @@ function MessageBox:PrintWhoQueue()
 end
 
 function MessageBox:ClearWhoQueue()
-    -- Clear in-progress sentinel for any queued entries
     for _, entry in ipairs(MessageBox.whoQueue) do
         if MessageBox.playerCache[entry.name] then
             MessageBox.playerCache[entry.name].whoInProgress = nil
         end
     end
-    -- Clear sentinel for current in-flight entry
     if MessageBox.currentWhoEntry and MessageBox.playerCache[MessageBox.currentWhoEntry.name] then
         MessageBox.playerCache[MessageBox.currentWhoEntry.name].whoInProgress = nil
     end
@@ -267,7 +259,7 @@ function MessageBox:AddMessage(contact, message, isOutgoing)
     
     MessageBox.conversationOrderDirty = true
 
-    -- Mark crash-save as needing a flush; throttled immediate flush
+    -- Mark crash save as needing a flush; throttled immediate flush
     MessageBox.crashSaveDirty = true
     if MessageBox.hasNampower then
         local now = GetTime()
@@ -334,7 +326,7 @@ function MessageBox:AddSystemMessage(contact, message, isTransient)
     -- New message changes sort order
     MessageBox.conversationOrderDirty = true
 
-    -- Mark crash-save as needing a flush
+    -- Mark crash save as needing a flush
     MessageBox.crashSaveDirty = true
 
     if self.detachedWindows[contact] and self.detachedWindows[contact]:IsVisible() then
