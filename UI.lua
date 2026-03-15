@@ -315,57 +315,71 @@ function MessageBox:UpdateChatHeader()
          end
     end
 
-    if cache and cache.class then
-        local color = RAID_CLASS_COLORS[cache.classUpper]
-        if color then
-            displayTitle = string.format("|cff%02x%02x%02x%s|r", color.r*255, color.g*255, color.b*255, name)
-        end
-    end
-    
-    self.chatHeader.nameText:SetText(displayTitle)
-
-    -- AFK/DND status display
-    if cache and cache.status and cache.status ~= "" then
-        self.chatHeader.guildText:SetText("|cffaaaaaa" .. cache.status .. "|r")
+    if cache and cache.isGM then
+        -- GM: special display — skip level/guild, show GM badge
+        displayTitle = "|cff00ccffGM " .. name .. "|r"
+        self.chatHeader.nameText:SetText(displayTitle)
+        
+        self.chatHeader.guildText:SetText("|cff00ccff<Game Master>|r")
         self.chatHeader.guildText:Show()
+        
+        self.chatHeader.avatarBtn.icon:SetTexture(MessageBox.textures.gmBadge)
+        self.chatHeader.avatarBtn.icon:SetTexCoord(0, 1, 0, 1)
+        
+        self.chatHeader.infoText:SetText("Game Master")
     else
-        self.chatHeader.guildText:SetText("")
-        self.chatHeader.guildText:Hide()
-    end
-
-    local infoString = ""
-    local coords = {0, 0.25, 0, 0.25} 
-
-    if cache then
-        if cache.guild and cache.guild ~= "" then
-            infoString = "<" .. cache.guild .. "> • "
+        if cache and cache.class then
+            local color = RAID_CLASS_COLORS[cache.classUpper]
+            if color then
+                displayTitle = string.format("|cff%02x%02x%02x%s|r", color.r*255, color.g*255, color.b*255, name)
+            end
         end
         
-        if cache.level and cache.level > 0 then
-            infoString = infoString .. "Level " .. cache.level
+        self.chatHeader.nameText:SetText(displayTitle)
+
+        -- AFK/DND status display
+        if cache and cache.status and cache.status ~= "" then
+            self.chatHeader.guildText:SetText("|cffaaaaaa" .. cache.status .. "|r")
+            self.chatHeader.guildText:Show()
         else
-            infoString = infoString .. "Unknown Level"
-        end
-        
-        if cache.zone and cache.zone ~= "" and cache.zone ~= "Unknown" then
-             infoString = infoString .. " • " .. cache.zone
+            self.chatHeader.guildText:SetText("")
+            self.chatHeader.guildText:Hide()
         end
 
-        if cache.class and CLASS_ICON_TCOORDS[cache.classUpper] then
-            coords = CLASS_ICON_TCOORDS[cache.classUpper]
-            self.chatHeader.avatarBtn.icon:SetTexture(MessageBox.textures.classIcons)
-            self.chatHeader.avatarBtn.icon:SetTexCoord(unpack(coords))
+        local infoString = ""
+        local coords = {0, 0.25, 0, 0.25} 
+
+        if cache then
+            if cache.guild and cache.guild ~= "" then
+                infoString = "<" .. cache.guild .. "> • "
+            end
+            
+            if cache.level and cache.level > 0 then
+                infoString = infoString .. "Level " .. cache.level
+            else
+                infoString = infoString .. "Unknown Level"
+            end
+            
+            if cache.zone and cache.zone ~= "" and cache.zone ~= "Unknown" then
+                 infoString = infoString .. " • " .. cache.zone
+            end
+
+            if cache.class and CLASS_ICON_TCOORDS[cache.classUpper] then
+                coords = CLASS_ICON_TCOORDS[cache.classUpper]
+                self.chatHeader.avatarBtn.icon:SetTexture(MessageBox.textures.classIcons)
+                self.chatHeader.avatarBtn.icon:SetTexCoord(unpack(coords))
+            else
+                 self.chatHeader.avatarBtn.icon:SetTexture(MessageBox.textures.iconQuestion)
+                 self.chatHeader.avatarBtn.icon:SetTexCoord(0.05, 0.95, 0.05, 0.95)
+            end
         else
-             self.chatHeader.avatarBtn.icon:SetTexture(MessageBox.textures.iconQuestion)
-             self.chatHeader.avatarBtn.icon:SetTexCoord(0.05, 0.95, 0.05, 0.95)
+            infoString = "Offline or Unknown"
+            self.chatHeader.avatarBtn.icon:SetTexture(MessageBox.textures.iconQuestion)
+            self.chatHeader.avatarBtn.icon:SetTexCoord(0.05, 0.95, 0.05, 0.95)
         end
-    else
-        infoString = "Offline or Unknown"
-        self.chatHeader.avatarBtn.icon:SetTexture(MessageBox.textures.iconQuestion)
-        self.chatHeader.avatarBtn.icon:SetTexCoord(0.05, 0.95, 0.05, 0.95)
+        
+        self.chatHeader.infoText:SetText(infoString)
     end
-    
-    self.chatHeader.infoText:SetText(infoString)
 
     local msgCount = 0
     
@@ -981,7 +995,10 @@ function MessageBox:UpdateScrollViews()
                     local data = MessageBox.visibleFriends[dataIndex]
                     
                     local displayName = data.name
-                    if data.class and RAID_CLASS_COLORS[data.classUpper] then
+                    local friendCache = MessageBox.playerCache[data.name]
+                    if friendCache and friendCache.isGM then
+                        displayName = "|cff00ccffGM " .. data.name .. "|r"
+                    elseif data.class and RAID_CLASS_COLORS[data.classUpper] then
                         local color = RAID_CLASS_COLORS[data.classUpper]
                         displayName = string.format("|cff%02x%02x%02x%s|r", color.r*255, color.g*255, color.b*255, data.name)
                     end
@@ -1037,7 +1054,9 @@ function MessageBox:UpdateScrollViews()
                     
                     local displayName = data.name
                     local cache = MessageBox.playerCache[data.name]
-                    if cache and cache.class and RAID_CLASS_COLORS[cache.classUpper] then
+                    if cache and cache.isGM then
+                        displayName = "|cff00ccffGM " .. data.name .. "|r"
+                    elseif cache and cache.class and RAID_CLASS_COLORS[cache.classUpper] then
                         local color = RAID_CLASS_COLORS[cache.classUpper]
                         displayName = string.format("|cff%02x%02x%02x%s|r", color.r*255, color.g*255, color.b*255, data.name)
                     end

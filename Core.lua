@@ -23,6 +23,14 @@ MessageBox.chatSearchTerm = ""
 MessageBox.chatSearchResults = {}
 MessageBox.chatSearchCurrentIndex = 0
 
+-- Nampower crash-save state
+MessageBox.hasNampower = false
+MessageBox.FLUSH_INTERVAL = 60      -- seconds between periodic auto-saves
+MessageBox.FLUSH_MIN_INTERVAL = 10  -- minimum seconds between event-triggered flushes
+MessageBox.flushElapsed = 0
+MessageBox.lastFlushTime = 0
+MessageBox.crashSaveDirty = false
+
 -- Layout constants
 MessageBox.layout = {
     MAIN_WIDTH          = 500,
@@ -79,6 +87,7 @@ MessageBox.textures = {
     sizeUp              = A .. "sizegrabber-up.tga",
     sizeDown            = A .. "sizegrabber-down.tga",
     sizeHi              = A .. "sizegrabber-highlight.tga",
+    gmBadge             = A .. "turtle.tga",
 
     -- Blizzard: panel buttons
     panelBtnUp          = B .. "UI-Panel-Button-Up",
@@ -168,6 +177,8 @@ MessageBox.defaultSettings = {
     buttonColor = {0.2, 0.2, 0.2, 1},
     textColor = {1, 1, 1, 1},
     selectionColor = {0.8, 0.8, 0.8, 0.4},
+    gmList = {},
+    classCache = {},  -- Persistent class/level data: { ["Name"] = { class="Mage", classUpper="MAGE", level=60 }, ... }
 }
 
 -- Get message count for a conversation, with fallback for legacy data
@@ -255,3 +266,184 @@ MessageBox.themes = {
     }
 
 }
+
+-- ============================================================
+-- Nampower Crash-Save: Serialization & File I/O
+-- ============================================================
+
+-- Lightweight Lua table serializer (Lua 5.0 compatible)
+-- Produces a string like "return { ... }" that loadstring() can evaluate.
+function MessageBox:SerializeValue(val, indent)
+    local t = type(val)
+    if t == "string" then
+        return string.format("%q", val)
+    elseif t == "number" then
+        return tostring(val)
+    elseif t == "boolean" then
+        return val and "true" or "false"
+    elseif t == "table" then
+        return self:SerializeTable(val, indent)
+    else
+        return "nil"
+    end
+end
+
+function MessageBox:SerializeTable(tbl, indent)
+    indent = indent or 1
+    local pad = string.rep(" ", indent * 2)
+    local padClose = string.rep(" ", (indent - 1) * 2)
+    local parts = {}
+    local partCount = 0
+
+    -- Detect array portion: consecutive integer keys starting at 1
+    local arrayLen = table.getn(tbl)
+
+    -- Serialize array portion
+    for i = 1, arrayLen do
+        partCount = partCount + 1
+        parts[partCount] = pad .. self:SerializeValue(tbl[i], indent + 1)
+    end
+
+    -- Serialize hash portion (skip integer keys already covered)
+    for k, v in pairs(tbl) do
+        local isArrayKey = (type(k) == "number" and k >= 1 and k <= arrayLen and math.floor(k) == k)
+        if not isArrayKey then
+            local keyStr
+            if type(k) == "string" then
+                -- Use shorthand [key]=val if key is a valid identifier
+                if string.find(k, "^[%a_][%w_]*$") then
+                    keyStr = k
+                else
+                    keyStr = "[" .. string.format("%q", k) .. "]"
+                end
+            elseif type(k) == "number" then
+                keyStr = "[" .. tostring(k) .. "]"
+            elseif type(k) == "boolean" then
+                keyStr = "[" .. (k and "true" or "false") .. "]"
+            else
+                keyStr = nil -- skip unsupported key types
+            end
+            if keyStr then
+                partCount = partCount + 1
+                parts[partCount] = pad .. keyStr .. " = " .. self:SerializeValue(v, indent + 1)
+            end
+        end
+    end
+
+    if partCount == 0 then
+        return "{}"
+    end
+    return "{\n" .. table.concat(parts, ",\n") .. "\n" .. padClose .. "}"
+end
+
+function MessageBox:Serialize(data)
+    return "return " .. self:SerializeValue(data, 1)
+end
+
+function MessageBox:Deserialize(str)
+    if not str or str == "" then return nil end
+    -- loadstring exists in WoW 1.12 Lua 5.0
+    local func, err = loadstring(str)
+    if not func then
+        DEFAULT_CHAT_FRAME:AddMessage("|cff3cb7f0Message|rBox: Crash-save parse error: " .. (err or "unknown"))
+        return nil
+    end
+    -- Execute in a safe context
+    local ok, result = pcall(func)
+    if not ok then
+        DEFAULT_CHAT_FRAME:AddMessage("|cff3cb7f0Message|rBox: Crash-save load error: " .. (result or "unknown"))
+        return nil
+    end
+    return result
+end
+
+-- Returns the filename for the current character's crash-save
+function MessageBox:GetCrashSaveFilename()
+    local name = UnitName("player") or "Unknown"
+    return "MessageBox_" .. name .. ".dat"
+end
+
+-- Write current session data to disk via Nampower
+function MessageBox:FlushToDisk()
+    if not self.hasNampower then return end
+
+    local data = {
+        conversations = MessageBoxDB,
+        unreadCounts = self.unreadCounts,
+        settings = MessageBoxSettings,
+        saveTime = time(),
+    }
+
+    local ok, serialized = pcall(function() return self:Serialize(data) end)
+    if not ok or not serialized then
+        DEFAULT_CHAT_FRAME:AddMessage("|cff3cb7f0Message|rBox: Crash-save serialize failed.")
+        return
+    end
+
+    local writeOk, writeErr = pcall(function()
+        WriteCustomFile(self:GetCrashSaveFilename(), serialized)
+    end)
+    if not writeOk then
+        DEFAULT_CHAT_FRAME:AddMessage("|cff3cb7f0Message|rBox: Crash-save write failed: " .. (writeErr or "unknown"))
+        return
+    end
+
+    self.lastFlushTime = GetTime()
+    self.crashSaveDirty = false
+end
+
+-- Write a clean-exit sentinel so we know not to recover on next login
+function MessageBox:WriteCrashSaveClean()
+    if not self.hasNampower then return end
+    pcall(function()
+        WriteCustomFile(self:GetCrashSaveFilename(), "CLEAN")
+    end)
+end
+
+-- Attempt to recover data from a crash-save file
+-- Returns true if recovery happened, false otherwise
+function MessageBox:AttemptCrashRecovery()
+    if not self.hasNampower then return false end
+
+    local filename = self:GetCrashSaveFilename()
+
+    local exists = false
+    pcall(function() exists = CustomFileExists(filename) end)
+    if not exists then return false end
+
+    local raw = nil
+    local readOk, readErr = pcall(function() raw = ReadCustomFile(filename) end)
+    if not readOk or not raw then return false end
+
+    -- Clean exit sentinel — no recovery needed
+    if raw == "CLEAN" then return false end
+
+    local recovered = self:Deserialize(raw)
+    if not recovered or not recovered.saveTime then return false end
+
+    -- Recovery: the crash-save file had real data, meaning last session
+    -- did not exit cleanly. Use the crash-save data.
+    if recovered.conversations then
+        MessageBoxDB = recovered.conversations
+        self.conversations = MessageBoxDB
+    end
+
+    if recovered.unreadCounts then
+        if self.settings then
+            self.settings.unreadCounts = recovered.unreadCounts
+        end
+        self.unreadCounts = recovered.unreadCounts
+    end
+
+    if recovered.settings then
+        -- Merge recovered settings on top of current settings.
+        -- This preserves any new defaults that were added since the crash-save.
+        for key, value in pairs(recovered.settings) do
+            MessageBoxSettings[key] = value
+        end
+        self.settings = MessageBoxSettings
+        self.unreadCounts = self.settings.unreadCounts
+    end
+
+    return true
+end
