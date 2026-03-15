@@ -575,6 +575,18 @@ function MessageBox:CreateFrame()
             return
         end
         
+        -- Update character count
+        local len = string.len(text)
+        if MessageBox.charCountText then
+            if len > 200 then
+                local color = len > 255 and "|cffff4444" or "|cffaaaaaa"
+                MessageBox.charCountText:SetText(color .. len .. "/255|r")
+                MessageBox.charCountText:Show()
+            else
+                MessageBox.charCountText:Hide()
+            end
+        end
+        
         if text == "" then text = " " end 
         
         measureFS:SetWidth(MessageBox.inputBackdrop:GetWidth() - 12)
@@ -608,6 +620,13 @@ function MessageBox:CreateFrame()
     sendButton:SetText("Send")
     sendButton:SetScript("OnClick", function() MessageBox:SendWhisper() end)
     MessageBox.sendButton = sendButton
+
+    -- Character count label (visible only past 200 characters)
+    local charCount = chatFrame:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    charCount:SetPoint("BOTTOM", sendButton, "TOP", 0, 2)
+    charCount:SetJustifyH("CENTER")
+    charCount:Hide()
+    MessageBox.charCountText = charCount
 
     local chatHistory = CreateFrame("ScrollingMessageFrame", "MessageBoxChatHistory", chatFrame)
     chatHistory:SetPoint("TOPLEFT", MessageBox.chatHeader, "BOTTOMLEFT", 8, -10)
@@ -1243,6 +1262,10 @@ function MessageBox:SendWhisper()
         this:SetText("")
         this:SetScript("OnUpdate", nil)
     end)
+
+    if MessageBox.charCountText then
+        MessageBox.charCountText:Hide()
+    end
 
     if MessageBox.inputBackdrop then
         MessageBox.inputBackdrop:SetHeight(28)
