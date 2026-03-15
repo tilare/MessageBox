@@ -184,7 +184,7 @@ function MessageBox:CreateChatHeader(parent)
     metaTopText:SetTextColor(0.7, 0.7, 0.7)
     header.metaTopText = metaTopText
 
-    -- Search button
+     Search button
     local searchBtn = CreateFrame("Button", nil, header)
     searchBtn:SetWidth(16)
     searchBtn:SetHeight(16)
@@ -212,7 +212,7 @@ function MessageBox:CreateChatHeader(parent)
     end)
     header.searchBtn = searchBtn
 
-    -- Pin button
+     Pin button
     local pinBtn = CreateFrame("Button", nil, header)
     pinBtn:SetWidth(16)
     pinBtn:SetHeight(16)
@@ -836,7 +836,7 @@ function MessageBox:UpdateContactList()
 
     MessageBox.visibleConversations = {}
     if MessageBox.conversations then
-        -- Only re-sort when conversation order has changed
+        -- Only re sort when conversation order has changed
         if MessageBox.conversationOrderDirty ~= false then
             local sortedContacts = {}
             for contact, data in pairs(MessageBox.conversations) do
