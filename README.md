@@ -1,6 +1,8 @@
 # MessageBox
 Modern Messenger-style addon to handle your whispers
 
+**Nampower** is optional, but required for crash save backup
+
  **Features:**
 
  **Whisper History –** Stores and displays your past whisper conversations.
