@@ -45,7 +45,7 @@ function MessageBox:OnLoad()
         MessageBox.whoElapsed = 0
         MessageBox:ProcessWhoQueue()
 
-        -- Periodic crash-save flush
+        -- Periodic crash save flush
         if MessageBox.hasNampower then
             MessageBox.flushElapsed = (MessageBox.flushElapsed or 0) + 1
             if MessageBox.flushElapsed >= MessageBox.FLUSH_INTERVAL then
@@ -91,7 +91,7 @@ function MessageBox:OnEvent(event)
             MessageBox:AttemptCrashRecovery()
         end
 
-        -- Register PLAYER_LOGOUT so we can mark a clean exit
+        -- Register PLAYER_LOGOUT to mark a clean exit
         MessageBox.eventFrame:RegisterEvent("PLAYER_LOGOUT")
 
         -- Restore persistent GM flags into playerCache
@@ -133,7 +133,7 @@ function MessageBox:OnEvent(event)
                 MessageBox.playerCache[sender] = {}
             end
             MessageBox.playerCache[sender].isGM = true
-            -- Persist GM status so it survives reload/relog
+            -- Persist GM status
             if MessageBox.settings.gmList then
                 MessageBox.settings.gmList[sender] = true
             end
@@ -166,7 +166,7 @@ function MessageBox:OnEvent(event)
             local count = MessageBox:GetCount(convo)
             if count > 0 then
                 -- Strip color codes for comparison in case the server
-                -- returns a modified version (e.g. TurtleWoW GM whispers)
+                -- returns a modified version (TurtleWoW GM whispers)
                 local storedMsg = string.gsub(convo.messages[count], "|c%x%x%x%x%x%x%x%x", "")
                 storedMsg = string.gsub(storedMsg, "|r", "")
                 local incomingMsg = string.gsub(message, "|c%x%x%x%x%x%x%x%x", "")
@@ -228,10 +228,6 @@ function MessageBox:OnEvent(event)
         end
     
     elseif event == "PLAYER_LOGOUT" then
-        -- Final flush then write clean-exit sentinel.
-        -- SavedVariables will handle the real persistence on clean exit,
-        -- so we just mark the crash-save file as "CLEAN" so the next
-        -- login knows no recovery is needed.
         MessageBox:FlushToDisk()
         MessageBox:WriteCrashSaveClean()
     end
