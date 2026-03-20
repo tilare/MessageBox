@@ -173,8 +173,9 @@ function MessageBox:ShowSettingsFrame()
         self:EnsureThemeBlocker()
         
         local f = CreateFrame("Frame", "MessageBoxSettingsFrame", UIParent)
+        tinsert(UISpecialFrames, "MessageBoxSettingsFrame")
         f:SetWidth(200)
-        f:SetHeight(290)
+        f:SetHeight(355)
         
         if self.settingsButton and self.settingsButton:IsVisible() then
              f:SetPoint("BOTTOMLEFT", self.settingsButton, "TOPLEFT", 0, 5)
@@ -207,16 +208,17 @@ function MessageBox:ShowSettingsFrame()
         title:SetText("Settings")
         
         -- Checkbox helper
-        local function CreateCheck(label, settingKey, yOffset, func)
+        local function CreateCheck(label, settingKey, yOffset, func, tooltip)
             local check = CreateFrame("CheckButton", nil, f, "UICheckButtonTemplate")
             check:SetPoint("TOPLEFT", 20, yOffset)
             check:SetWidth(24)
             check:SetHeight(24)
-            
+
             local text = f:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
             text:SetPoint("LEFT", check, "RIGHT", 5, 0)
             text:SetText(label)
-            
+            check.label = text
+
             check:SetScript("OnClick", function()
                 if this:GetChecked() then
                     MessageBox.settings[settingKey] = true
@@ -225,34 +227,133 @@ function MessageBox:ShowSettingsFrame()
                 end
                 if func then func() end
             end)
-            
+
             check:SetScript("OnShow", function()
                 check:SetChecked(MessageBox.settings[settingKey])
             end)
-            
+
+            if tooltip then
+                check:SetScript("OnEnter", function()
+                    GameTooltip:SetOwner(this, "ANCHOR_RIGHT")
+                    GameTooltip:SetText(label, 1, 1, 1)
+                    GameTooltip:AddLine(tooltip, nil, nil, nil, true)
+                    GameTooltip:Show()
+                end)
+                check:SetScript("OnLeave", function() GameTooltip:Hide() end)
+            end
+
             return check
         end
-        
-        local yStart = -40
-        local yStep = -30
-        
+
+        -- Section header helper
+        local function CreateSectionHeader(text, yOffset)
+            local header = f:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+            header:SetPoint("TOPLEFT", 16, yOffset)
+            header:SetText(text)
+            header:SetTextColor(1, 0.82, 0, 1)
+
+            local line = f:CreateTexture(nil, "ARTWORK")
+            line:SetHeight(1)
+            line:SetPoint("LEFT", header, "RIGHT", 6, 0)
+            line:SetPoint("RIGHT", f, "RIGHT", -16, 0)
+            line:SetTexture(1, 0.82, 0, 0.3)
+
+            if not f.sectionHeaders then f.sectionHeaders = {} end
+            table.insert(f.sectionHeaders, { text = header, line = line })
+
+            return header
+        end
+
+        local y = -35
+        local yStep = -26
+        local sectionGap = -8
+        local headerHeight = -18
+
         f.checks = {}
-        
-        f.checks["interceptWhispers"] = CreateCheck("Intercept Whispers (/w)", "interceptWhispers", yStart, nil)
-        f.checks["backgroundWho"] = CreateCheck("Background WHO Lookup", "backgroundWho", yStart + yStep, nil)
-        f.checks["showMinimapButton"] = CreateCheck("Show Minimap Button", "showMinimapButton", yStart + (yStep*2), function() MessageBox:UpdateMinimapButtonVisibility() end)
-        f.checks["hideOffline"] = CreateCheck("Hide Offline Friends", "hideOffline", yStart + (yStep*3), function() MessageBox:UpdateContactList() end)
-        f.checks["use12HourFormat"] = CreateCheck("Use 12-Hour Format", "use12HourFormat", yStart + (yStep*4), function() MessageBox:UpdateChatHistory() end)
-        
-        -- Theme toggle
+
+        -- Section: Messaging
+        CreateSectionHeader("Messaging", y)
+        y = y + headerHeight
+
+        f.checks["interceptWhispers"] = CreateCheck("Intercept Whispers (/w)", "interceptWhispers", y,
+            nil, "Capture outgoing whispers from /w or whisper button into MessageBox conversations.")
+        y = y + yStep
+
+        f.checks["suppressWhispers"] = CreateCheck("Suppress Whispers in Chat", "suppressWhispers", y,
+            nil, "Hide whisper messages from the default chat frame.")
+        y = y + yStep
+
+        f.checks["notificationSound"] = CreateCheck("Notification Sound", "notificationSound", y,
+            nil, "Play a notification sound when a new whisper is received.")
+        y = y + yStep + sectionGap
+
+        -- Section: Display
+        CreateSectionHeader("Display", y)
+        y = y + headerHeight
+
+        f.checks["showMinimapButton"] = CreateCheck("Show Minimap Button", "showMinimapButton", y,
+            function() MessageBox:UpdateMinimapButtonVisibility() end,
+            "Show the MessageBox button on the minimap.")
+        y = y + yStep
+
+        f.checks["hideOffline"] = CreateCheck("Hide Offline Friends", "hideOffline", y,
+            function() MessageBox:UpdateContactList() end,
+            "Only show friends who are currently online in the friends list.")
+        y = y + yStep
+
+        f.checks["use12HourFormat"] = CreateCheck("Use 12-Hour Format", "use12HourFormat", y,
+            function() MessageBox:UpdateChatHistory() end,
+            "Display timestamps in 12-hour format (e.g., 2:30 PM) instead of 24-hour.")
+        y = y + yStep
+
+        f.checks["backgroundWho"] = CreateCheck("Background WHO Lookup", "backgroundWho", y,
+            nil, "Automatically query player class, level, and guild information in the background.")
+        y = y + yStep
+
+        -- Font Size Slider
+        local fontSlider = CreateFrame("Slider", "MessageBoxFontSlider", f, "OptionsSliderTemplate")
+        fontSlider:SetWidth(160)
+        fontSlider:SetHeight(16)
+        fontSlider:SetPoint("TOPLEFT", 20, y - 10)
+        fontSlider:SetMinMaxValues(8, 24)
+        fontSlider:SetValueStep(1)
+
+        getglobal(fontSlider:GetName().."Low"):SetText("8")
+        getglobal(fontSlider:GetName().."High"):SetText("24")
+        getglobal(fontSlider:GetName().."Text"):SetText("Chat Font Size: " .. (MessageBox.settings.chatFontSize or MessageBox.defaultSettings.chatFontSize))
+
+        fontSlider:SetScript("OnValueChanged", function()
+             local val = math.floor(arg1)
+             MessageBox.settings.chatFontSize = val
+             getglobal(this:GetName().."Text"):SetText("Chat Font Size: " .. val)
+             MessageBox:ApplyChatFontSize()
+        end)
+        fontSlider:SetScript("OnEnter", function()
+            GameTooltip:SetOwner(this, "ANCHOR_RIGHT")
+            GameTooltip:SetText("Chat Font Size", 1, 1, 1)
+            GameTooltip:AddLine("Adjust the font size used in conversation messages.", nil, nil, nil, true)
+            GameTooltip:Show()
+        end)
+        fontSlider:SetScript("OnLeave", function() GameTooltip:Hide() end)
+
+        fontSlider:SetValue(MessageBox.settings.chatFontSize or MessageBox.defaultSettings.chatFontSize)
+        f.fontSlider = fontSlider
+        y = y + yStep + sectionGap + -10
+
+        -- Section: Theme
+        CreateSectionHeader("Theme", y)
+        y = y + headerHeight
+
+        -- Theme toggle (inverted logic - checked means Classic)
         local themeCheck = CreateFrame("CheckButton", nil, f, "UICheckButtonTemplate")
-        themeCheck:SetPoint("TOPLEFT", 20, yStart + (yStep*5))
+        themeCheck:SetPoint("TOPLEFT", 20, y)
         themeCheck:SetWidth(24)
         themeCheck:SetHeight(24)
         local themeText = f:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
         themeText:SetPoint("LEFT", themeCheck, "RIGHT", 5, 0)
         themeText:SetText("Classic Theme")
-        
+        themeCheck.label = themeText
+
         themeCheck:SetScript("OnClick", function()
             MessageBox.settings.modernTheme = not this:GetChecked()
             MessageBox:ApplyTheme()
@@ -262,29 +363,14 @@ function MessageBox:ShowSettingsFrame()
         themeCheck:SetScript("OnShow", function()
             themeCheck:SetChecked(not MessageBox.settings.modernTheme)
         end)
-        f.checks["theme"] = themeCheck
-        
-        -- Font Size Slider
-        local fontSlider = CreateFrame("Slider", "MessageBoxFontSlider", f, "OptionsSliderTemplate")
-        fontSlider:SetWidth(160)
-        fontSlider:SetHeight(16)
-        fontSlider:SetPoint("TOPLEFT", 20, yStart + (yStep*6) - 10)
-        fontSlider:SetMinMaxValues(8, 24)
-        fontSlider:SetValueStep(1)
-        
-        getglobal(fontSlider:GetName().."Low"):SetText("8")
-        getglobal(fontSlider:GetName().."High"):SetText("24")
-        getglobal(fontSlider:GetName().."Text"):SetText("Chat Font Size: " .. (MessageBox.settings.chatFontSize or MessageBox.defaultSettings.chatFontSize))
-        
-        fontSlider:SetScript("OnValueChanged", function()
-             local val = math.floor(arg1)
-             MessageBox.settings.chatFontSize = val
-             getglobal(this:GetName().."Text"):SetText("Chat Font Size: " .. val)
-             MessageBox:ApplyChatFontSize()
+        themeCheck:SetScript("OnEnter", function()
+            GameTooltip:SetOwner(this, "ANCHOR_RIGHT")
+            GameTooltip:SetText("Classic Theme", 1, 1, 1)
+            GameTooltip:AddLine("Switch to the classic World of Warcraft visual style.", nil, nil, nil, true)
+            GameTooltip:Show()
         end)
-        
-        fontSlider:SetValue(MessageBox.settings.chatFontSize or MessageBox.defaultSettings.chatFontSize)
-        f.fontSlider = fontSlider
+        themeCheck:SetScript("OnLeave", function() GameTooltip:Hide() end)
+        f.checks["theme"] = themeCheck
 
         local close = CreateFrame("Button", nil, f, "UIPanelCloseButton")
         close:SetPoint("TOPRIGHT", -5, -5)
@@ -301,10 +387,12 @@ function MessageBox:ShowSettingsFrame()
     -- Force update checks
     if self.settingsFrame.checks then
         self.settingsFrame.checks["interceptWhispers"]:SetChecked(MessageBox.settings.interceptWhispers)
-        self.settingsFrame.checks["backgroundWho"]:SetChecked(MessageBox.settings.backgroundWho)
+        self.settingsFrame.checks["suppressWhispers"]:SetChecked(MessageBox.settings.suppressWhispers)
+        self.settingsFrame.checks["notificationSound"]:SetChecked(MessageBox.settings.notificationSound)
         self.settingsFrame.checks["showMinimapButton"]:SetChecked(MessageBox.settings.showMinimapButton)
         self.settingsFrame.checks["hideOffline"]:SetChecked(MessageBox.settings.hideOffline)
         self.settingsFrame.checks["use12HourFormat"]:SetChecked(MessageBox.settings.use12HourFormat)
+        self.settingsFrame.checks["backgroundWho"]:SetChecked(MessageBox.settings.backgroundWho)
         self.settingsFrame.checks["theme"]:SetChecked(not MessageBox.settings.modernTheme)
     end
 end
@@ -791,6 +879,10 @@ function MessageBox:ShowNotificationPopup()
     self.notificationPopup.flashTime = 0
     self.notificationPopup:Show()
     self:UpdateMinimapBadge()
+
+    if self.settings.notificationSound then
+        PlaySoundFile("Interface\\AddOns\\MessageBox\\sound\\notification.wav")
+    end
 end
 
 function MessageBox:HideNotificationPopup()
