@@ -41,6 +41,58 @@ function MessageBox:SkinIconButton(btn, isModern, selectionColor)
     end
 end
 
+function MessageBox:SkinCheckbox(check, isModern, textColor, inputColor, panelBorderColor)
+    if not check then return end
+
+    if isModern then
+        check:SetNormalTexture("")
+        check:SetPushedTexture("")
+        check:SetHighlightTexture(MessageBox.textures.listHighlight)
+        local hl = check:GetHighlightTexture()
+        if hl then
+            hl:SetVertexColor(1, 1, 1, 0.15)
+        end
+
+        check:SetCheckedTexture(MessageBox.textures.white8x8)
+        local ct = check:GetCheckedTexture()
+        if ct then
+            local highlightColor = MessageBox.settings.highlightColor or MessageBox.defaultSettings.highlightColor
+            ct:SetVertexColor(unpack(highlightColor))
+            ct:ClearAllPoints()
+            ct:SetPoint("CENTER", 0, 0)
+            ct:SetWidth(12)
+            ct:SetHeight(12)
+        end
+
+        check:SetBackdrop({
+            bgFile = MessageBox.textures.chatBg,
+            edgeFile = MessageBox.textures.chatBg,
+            tile = false, tileSize = 0, edgeSize = 1,
+            insets = {left = 2, right = 2, top = 2, bottom = 2}
+        })
+        check:SetBackdropColor(unpack(inputColor))
+        check:SetBackdropBorderColor(unpack(panelBorderColor))
+    else
+        check:SetNormalTexture("Interface\\Buttons\\UI-CheckBox-Up")
+        check:SetPushedTexture("Interface\\Buttons\\UI-CheckBox-Down")
+        check:SetHighlightTexture("Interface\\Buttons\\UI-CheckBox-Highlight")
+        check:SetCheckedTexture("Interface\\Buttons\\UI-CheckBox-Check")
+
+        local ct = check:GetCheckedTexture()
+        if ct then
+            ct:SetVertexColor(1, 1, 1, 1)
+            ct:ClearAllPoints()
+            ct:SetAllPoints(check)
+        end
+
+        check:SetBackdrop(nil)
+    end
+
+    if check.label then
+        check.label:SetTextColor(unpack(textColor))
+    end
+end
+
 function MessageBox:UpdateThemeFrameSwatches()
     if self.themeFrame and self.themeFrame.swatches then
         for _, swatch in ipairs(self.themeFrame.swatches) do
@@ -384,6 +436,100 @@ function MessageBox:ApplyTheme()
 
             MessageBox:SkinCloseButton(self.settingsFrame.closeBtn, false)
         end
+
+        if self.settingsFrame.sectionHeaders then
+            for _, h in ipairs(self.settingsFrame.sectionHeaders) do
+                if self.settings.modernTheme then
+                    h.text:SetTextColor(0.7, 0.7, 0.7, 1)
+                    h.line:SetTexture(0.4, 0.4, 0.4, 0.3)
+                else
+                    h.text:SetTextColor(1, 0.82, 0, 1)
+                    h.line:SetTexture(1, 0.82, 0, 0.3)
+                end
+            end
+        end
+
+        -- Skin settings checkboxes
+        if self.settingsFrame.checks then
+            for key, check in pairs(self.settingsFrame.checks) do
+                MessageBox:SkinCheckbox(check, self.settings.modernTheme, textColor, inputColor, themeDef.panelBorderColor)
+            end
+        end
+
+        -- Skin font size slider
+        if self.settingsFrame.fontSlider then
+            local slider = self.settingsFrame.fontSlider
+            local name = slider:GetName()
+
+            if self.settings.modernTheme then
+                slider:SetHeight(10)
+                slider:SetBackdrop({
+                    bgFile = MessageBox.textures.chatBg,
+                    edgeFile = MessageBox.textures.chatBg,
+                    edgeSize = 1,
+                    insets = {left = 0, right = 0, top = 0, bottom = 0}
+                })
+                slider:SetBackdropColor(0.15, 0.15, 0.15, 0.5)
+                slider:SetBackdropBorderColor(0, 0, 0, 0)
+
+                local thumb = getglobal(name.."Thumb")
+                if thumb then
+                    thumb:SetTexture(MessageBox.textures.white8x8)
+                    local r, g, b, a = unpack(self.settings.highlightColor or {0.8, 0.8, 0.8, 1})
+                    thumb:SetVertexColor(r, g, b, a)
+                    thumb:SetWidth(10)
+                    thumb:SetHeight(10)
+                end
+
+                local textLabel = getglobal(name.."Text")
+                if textLabel then textLabel:SetTextColor(unpack(self.settings.textColor or {1,1,1,1})) end
+                local low = getglobal(name.."Low")
+                if low then
+                    low:SetTextColor(0.5, 0.5, 0.5, 1)
+                    low:ClearAllPoints()
+                    low:SetPoint("TOPLEFT", slider, "BOTTOMLEFT", 0, -2)
+                end
+                local high = getglobal(name.."High")
+                if high then
+                    high:SetTextColor(0.5, 0.5, 0.5, 1)
+                    high:ClearAllPoints()
+                    high:SetPoint("TOPRIGHT", slider, "BOTTOMRIGHT", 0, -2)
+                end
+            else
+                slider:SetHeight(16)
+                slider:SetBackdrop({
+                    bgFile = "Interface\\Buttons\\UI-SliderBar-Background",
+                    edgeFile = "Interface\\Buttons\\UI-SliderBar-Border",
+                    tile = true, tileSize = 8, edgeSize = 8,
+                    insets = {left = 3, right = 3, top = 6, bottom = 6}
+                })
+                slider:SetBackdropColor(1, 1, 1, 1)
+                slider:SetBackdropBorderColor(1, 1, 1, 1)
+
+                local thumb = getglobal(name.."Thumb")
+                if thumb then
+                    thumb:SetTexture("Interface\\Buttons\\UI-SliderBar-Button-Horizontal")
+                    thumb:SetVertexColor(1, 1, 1, 1)
+                    thumb:SetWidth(32)
+                    thumb:SetHeight(32)
+                end
+
+                local textLabel = getglobal(name.."Text")
+                if textLabel then textLabel:SetTextColor(1, 0.82, 0, 1) end
+                local low = getglobal(name.."Low")
+                if low then
+                    low:SetTextColor(1, 1, 1, 1)
+                    low:ClearAllPoints()
+                    low:SetPoint("TOPLEFT", slider, "BOTTOMLEFT", 0, 3)
+                end
+                local high = getglobal(name.."High")
+                if high then
+                    high:SetTextColor(1, 1, 1, 1)
+                    high:ClearAllPoints()
+                    high:SetPoint("TOPRIGHT", slider, "BOTTOMRIGHT", 0, 3)
+                end
+            end
+        end
     end
 
     local headers = {self.friendsHeader, self.conversationsHeader}
@@ -527,6 +673,7 @@ function MessageBox:ShowThemeFrame()
         self:EnsureThemeBlocker()
         
         local f = CreateFrame("Frame", "MessageBoxThemeFrame", UIParent)
+        tinsert(UISpecialFrames, "MessageBoxThemeFrame")
         f:SetWidth(200)
         f:SetHeight(320)
         

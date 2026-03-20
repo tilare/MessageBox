@@ -1,6 +1,9 @@
 -- Core.lua
 -- Data structures
 
+BINDING_HEADER_MESSAGEBOX = "MessageBox"
+BINDING_NAME_MESSAGEBOX_TOGGLE = "Toggle MessageBox"
+
 MessageBox = {}
 MessageBox.conversations = {}
 MessageBox.settings = {}
@@ -35,9 +38,12 @@ MessageBox.crashSaveDirty = false
 MessageBox.layout = {
     MAIN_WIDTH          = 500,
     MAIN_HEIGHT         = 350,
+    MIN_WIDTH           = 280,
+    MIN_HEIGHT          = 200,
     MAX_WIDTH           = 1000,
     MAX_HEIGHT          = 800,
     CONTACT_WIDTH       = 140,
+    SIDEBAR_MIN_WIDTH   = 70,
     ROW_HEIGHT          = 16,
     HEADER_HEIGHT       = 20,
     SEARCH_AREA_HEIGHT  = 30,
@@ -169,6 +175,8 @@ MessageBox.defaultSettings = {
     interceptWhispers = true,
     backgroundWho = true,
     chatFontSize = 10,
+    notificationSound = true,
+    suppressWhispers = false,
     
     mainColor = {0.08, 0.08, 0.1, 0.95},
     panelColor = {0.15, 0.15, 0.17, 0.6},

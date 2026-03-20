@@ -12,14 +12,15 @@ function MessageBox:CreateContactRow(parent)
     statusIcon:SetPoint("LEFT", frame, "LEFT", -5, -2)
     frame.statusIcon = statusIcon
     
-    local text = frame:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-    text:SetPoint("LEFT", statusIcon, "RIGHT", 3, 1)
-    frame.text = text
-
     local pinIcon = frame:CreateTexture(nil, "OVERLAY")
     pinIcon:SetWidth(10)
     pinIcon:SetHeight(10)
-    pinIcon:SetPoint("RIGHT", frame, "RIGHT", -5, 0)
+    pinIcon:SetPoint("RIGHT", frame, "RIGHT", -2, 0)
+
+    local text = frame:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+    text:SetPoint("LEFT", statusIcon, "RIGHT", 3, 1)
+    text:SetJustifyH("LEFT")
+    frame.text = text
     pinIcon:SetTexture(MessageBox.textures.pin)
     pinIcon:Hide()
     frame.pinIcon = pinIcon
@@ -163,6 +164,7 @@ function MessageBox:CreateChatHeader(parent)
 
     local nameText = header:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
     nameText:SetPoint("TOPLEFT", avatarBtn, "TOPRIGHT", 10, -4)
+    nameText:SetPoint("RIGHT", header, "RIGHT", -35, 0)
     nameText:SetJustifyH("LEFT")
     header.nameText = nameText
 
@@ -174,6 +176,7 @@ function MessageBox:CreateChatHeader(parent)
 
     local infoText = header:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
     infoText:SetPoint("TOPLEFT", nameText, "BOTTOMLEFT", 0, -2)
+    infoText:SetPoint("RIGHT", header, "RIGHT", -35, 0)
     infoText:SetJustifyH("LEFT")
     infoText:SetTextColor(0.8, 0.8, 0.8)
     header.infoText = infoText
@@ -284,6 +287,12 @@ function MessageBox:UpdateChatHeader()
     self.chatHeader.searchBtn:Show()
     self.chatHeader.guildText:Show()
     self.chatHeader.metaTopText:Show()
+
+    -- Hide elements that don't fit at narrow chat widths
+    if self.chatFrame and self.chatFrame:GetWidth() < 300 then
+        self.chatHeader.guildText:Hide()
+        self.chatHeader.metaTopText:Hide()
+    end
 
     local name = self.selectedContact
     local displayTitle = name
@@ -405,7 +414,7 @@ function MessageBox:CreateFrame()
     frame:SetMovable(true)
     frame:EnableMouse(true)
     frame:SetResizable(true)
-    frame:SetMinResize(L.MAIN_WIDTH, L.MAIN_HEIGHT)
+    frame:SetMinResize(L.MIN_WIDTH, L.MIN_HEIGHT)
     frame:SetMaxResize(L.MAX_WIDTH, L.MAX_HEIGHT)
     frame:SetScript("OnMouseDown", function()
         frame:StartMoving()
@@ -414,8 +423,8 @@ function MessageBox:CreateFrame()
     frame:SetScript("OnMouseUp", function()
         frame:StopMovingOrSizing()
     end)
-    frame:SetScript("OnSizeChanged", function() 
-        MessageBox:MarkContactListDirty() 
+    frame:SetScript("OnSizeChanged", function()
+        MessageBox.relayoutDirty = true
     end)
     frame:Hide()
 
@@ -809,9 +818,97 @@ function MessageBox:CreateFrame()
     
     local settingsDropDown = CreateFrame("Frame", "MessageBoxSettingsDropDown", frame, "UIDropDownMenuTemplate")
 
+    -- Throttled relayout on resize
+    MessageBox.relayoutDirty = false
+    MessageBox.relayoutLastUpdate = 0
+    frame:SetScript("OnUpdate", function()
+        if not MessageBox.relayoutDirty then return end
+        local now = GetTime()
+        if (now - MessageBox.relayoutLastUpdate) < 0.05 then return end
+        MessageBox.relayoutDirty = false
+        MessageBox.relayoutLastUpdate = now
+        MessageBox:RelayoutMainFrame()
+    end)
+
     tinsert(UISpecialFrames, "MessageBoxFrame")
     MessageBox:UpdateContactList()
     MessageBox:ApplyTheme()
+end
+
+function MessageBox:RelayoutMainFrame()
+    if not self.frame then return end
+
+    local L = self.layout
+    local frameWidth = self.frame:GetWidth()
+
+    -- Sidebar: scale proportionally from CONTACT_WIDTH down to SIDEBAR_MIN_WIDTH
+    local sidebarWidth = L.CONTACT_WIDTH
+    if frameWidth < L.MAIN_WIDTH then
+        local ratio = (frameWidth - L.MIN_WIDTH) / (L.MAIN_WIDTH - L.MIN_WIDTH)
+        if ratio < 0 then ratio = 0 end
+        if ratio > 1 then ratio = 1 end
+        sidebarWidth = L.SIDEBAR_MIN_WIDTH + ratio * (L.CONTACT_WIDTH - L.SIDEBAR_MIN_WIDTH)
+        sidebarWidth = math.floor(sidebarWidth)
+        if sidebarWidth < L.SIDEBAR_MIN_WIDTH then sidebarWidth = L.SIDEBAR_MIN_WIDTH end
+    end
+
+    if self.contactFrame then
+        self.contactFrame:SetWidth(sidebarWidth)
+    end
+
+    -- Search box width
+    local searchBox = getglobal("MessageBoxContactSearch")
+    if searchBox then
+        searchBox:SetWidth(sidebarWidth - 20)
+    end
+
+    -- Clip child width
+    if self.clipChild then
+        self.clipChild:SetWidth(sidebarWidth)
+    end
+
+    -- Bottom buttons: scale from 80 down to 50
+    local buttonWidth = 80
+    if frameWidth < L.MAIN_WIDTH then
+        local ratio = (frameWidth - L.MIN_WIDTH) / (L.MAIN_WIDTH - L.MIN_WIDTH)
+        if ratio < 0 then ratio = 0 end
+        if ratio > 1 then ratio = 1 end
+        buttonWidth = math.floor(50 + ratio * 30)
+        if buttonWidth < 50 then buttonWidth = 50 end
+    end
+    if self.deleteButton then self.deleteButton:SetWidth(buttonWidth) end
+    if self.deleteAllButton then self.deleteAllButton:SetWidth(buttonWidth) end
+    if self.settingsButton then self.settingsButton:SetWidth(buttonWidth) end
+
+    -- Chat header: adapt to narrow widths
+    self:AdaptChatHeader()
+
+    -- Trigger contact list rebuild
+    self:MarkContactListDirty()
+end
+
+function MessageBox:AdaptChatHeader()
+    if not self.chatHeader or not self.chatFrame then return end
+
+    local chatWidth = self.chatFrame:GetWidth()
+
+    if chatWidth < 200 then
+        self.chatHeader:SetHeight(36)
+        self.chatHeader.avatarBtn:SetWidth(24)
+        self.chatHeader.avatarBtn:SetHeight(24)
+        if self.chatHeader.guildText then self.chatHeader.guildText:Hide() end
+        if self.chatHeader.metaTopText then self.chatHeader.metaTopText:Hide() end
+    elseif chatWidth < 300 then
+        self.chatHeader:SetHeight(50)
+        self.chatHeader.avatarBtn:SetWidth(36)
+        self.chatHeader.avatarBtn:SetHeight(36)
+        if self.chatHeader.guildText then self.chatHeader.guildText:Hide() end
+        if self.chatHeader.metaTopText then self.chatHeader.metaTopText:Hide() end
+    else
+        self.chatHeader:SetHeight(50)
+        self.chatHeader.avatarBtn:SetWidth(36)
+        self.chatHeader.avatarBtn:SetHeight(36)
+    end
 end
 
 function MessageBox:UpdateContactList()
@@ -1040,9 +1137,10 @@ function MessageBox:UpdateScrollViews()
                     row.pinIcon:Hide()
 
                     row.contactName = data.name
-                    
+
                     row:SetPoint("TOPLEFT", MessageBox.friendsScroll, "TOPLEFT", 8, -((i-1)*16))
                     row:SetWidth(MessageBox.friendsScroll:GetWidth())
+                    row.text:SetWidth(row:GetWidth() - 10)
                     row:Show()
                 else
                     row:Hide()
@@ -1105,9 +1203,11 @@ function MessageBox:UpdateScrollViews()
                     end
 
                     row.contactName = data.name
-                    
+
                     row:SetPoint("TOPLEFT", MessageBox.conversationsScroll, "TOPLEFT", 8, -((i-1)*16))
                     row:SetWidth(MessageBox.conversationsScroll:GetWidth())
+                    local textRight = data.pinned and 22 or 10
+                    row.text:SetWidth(row:GetWidth() - textRight)
                     row:Show()
                 else
                     row:Hide()

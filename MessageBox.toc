@@ -1,10 +1,11 @@
 ## Interface: 11200
 ## Title: |cff3cb7f0Message|cffffffffBox
 ## Author: tilr
-## Version: 2.4
+## Version: 2.5
 ## Notes: Stores and displays whisper conversation history
 ## SavedVariablesPerCharacter: MessageBoxDB, MessageBoxSettings
 
+Bindings.xml
 Core.lua
 Utils.lua
 Logic.lua

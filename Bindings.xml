@@ -1,0 +1,5 @@
+<Bindings>
+  <Binding name="MESSAGEBOX_TOGGLE" description="Toggle MessageBox" header="MESSAGEBOX">
+    MessageBox:ToggleFrame();
+  </Binding>
+</Bindings>

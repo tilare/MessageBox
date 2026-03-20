@@ -173,7 +173,7 @@ end
 
 function MessageBox:PrintWhoQueue()
     if MessageBox.currentWhoEntry then
-        DEFAULT_CHAT_FRAME:AddMessage("|cff3cb7f0Message|rBox: WHO in-flight: " .. MessageBox.currentWhoEntry.name .. " (Attempts: " .. MessageBox.currentWhoEntry.attempts .. ")")
+        DEFAULT_CHAT_FRAME:AddMessage("|cff3cb7f0Message|rBox: WHO in progress: " .. MessageBox.currentWhoEntry.name .. " (Attempts: " .. MessageBox.currentWhoEntry.attempts .. ")")
     end
     local count = table.getn(MessageBox.whoQueue)
     if count == 0 and not MessageBox.currentWhoEntry then
@@ -213,6 +213,18 @@ function MessageBox:SetupHooks()
                 return
             end
             MessageBox.original_ChatFrame_SendTell(name, chatFrame)
+        end
+    end
+
+    if not self.original_ChatFrame_OnEvent then
+        self.original_ChatFrame_OnEvent = ChatFrame_OnEvent
+        ChatFrame_OnEvent = function(event)
+            if MessageBox.settings.suppressWhispers then
+                if event == "CHAT_MSG_WHISPER" or event == "CHAT_MSG_WHISPER_INFORM" then
+                    return
+                end
+            end
+            MessageBox.original_ChatFrame_OnEvent(event)
         end
     end
 
