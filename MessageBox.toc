@@ -2,7 +2,7 @@
 ## Title: |cff3cb7f0Message|cffffffffBox
 ## Author: tilr
 ## Version: 2.5
-## Notes: Stores and displays whisper conversation history
+## Notes: A modern messenger-style addon replacement for the WoW whisper system.
 ## SavedVariablesPerCharacter: MessageBoxDB, MessageBoxSettings
 
 Bindings.xml
