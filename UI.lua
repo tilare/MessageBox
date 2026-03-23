@@ -164,7 +164,6 @@ function MessageBox:CreateChatHeader(parent)
 
     local nameText = header:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
     nameText:SetPoint("TOPLEFT", avatarBtn, "TOPRIGHT", 10, -4)
-    nameText:SetPoint("RIGHT", header, "RIGHT", -35, 0)
     nameText:SetJustifyH("LEFT")
     header.nameText = nameText
 
@@ -288,11 +287,6 @@ function MessageBox:UpdateChatHeader()
     self.chatHeader.guildText:Show()
     self.chatHeader.metaTopText:Show()
 
-    -- Hide elements that don't fit at narrow chat widths
-    if self.chatFrame and self.chatFrame:GetWidth() < 300 then
-        self.chatHeader.guildText:Hide()
-        self.chatHeader.metaTopText:Hide()
-    end
 
     local name = self.selectedContact
     local displayTitle = name
@@ -335,7 +329,7 @@ function MessageBox:UpdateChatHeader()
         self.chatHeader.avatarBtn.icon:SetTexture(MessageBox.textures.gmBadge)
         self.chatHeader.avatarBtn.icon:SetTexCoord(0, 1, 0, 1)
         
-        self.chatHeader.infoText:SetText("Game Master")
+        self.chatHeader.infoText:SetText("")
     else
         if cache and cache.class then
             local color = RAID_CLASS_COLORS[cache.classUpper]
@@ -898,16 +892,12 @@ function MessageBox:AdaptChatHeader()
         self.chatHeader.avatarBtn:SetHeight(24)
         if self.chatHeader.guildText then self.chatHeader.guildText:Hide() end
         if self.chatHeader.metaTopText then self.chatHeader.metaTopText:Hide() end
-    elseif chatWidth < 300 then
-        self.chatHeader:SetHeight(50)
-        self.chatHeader.avatarBtn:SetWidth(36)
-        self.chatHeader.avatarBtn:SetHeight(36)
-        if self.chatHeader.guildText then self.chatHeader.guildText:Hide() end
-        if self.chatHeader.metaTopText then self.chatHeader.metaTopText:Hide() end
     else
         self.chatHeader:SetHeight(50)
         self.chatHeader.avatarBtn:SetWidth(36)
         self.chatHeader.avatarBtn:SetHeight(36)
+        if self.chatHeader.guildText then self.chatHeader.guildText:Show() end
+        if self.chatHeader.metaTopText then self.chatHeader.metaTopText:Show() end
     end
 end
 
