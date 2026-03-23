@@ -33,17 +33,17 @@ Modern Messenger-style addon to handle your whispers
 
  **Commands -** Open the UI with /messagebox, /mbox, or /mb.
 ## Images
-<img width="809" height="591" alt="mb1" src="https://i.gyazo.com/d7663395687e718d7362dade72125576.png" />
+<img src="https://i.gyazo.com/d7663395687e718d7362dade72125576.png" />
 
-<img width="325" height="401" alt="mb2" src="https://i.gyazo.com/71e499a56595f65924b86729419469e4.png" />
+<img src="https://i.gyazo.com/71e499a56595f65924b86729419469e4.png" />
 
-<img width="808" height="594" alt="mb3" src="https://i.gyazo.com/ffd7055cee2e33f3df6e6b711c6d3a0a.png" />
+<img src="https://i.gyazo.com/ffd7055cee2e33f3df6e6b711c6d3a0a.png" />
 
-<img width="432" height="629" alt="mb4" src="https://i.gyazo.com/c9b450c1af33dbbdaf5540e80fa57e4c.png" />
+<img src="https://i.gyazo.com/c9b450c1af33dbbdaf5540e80fa57e4c.png" />
 
 ## Classic Theme
 
-<img width="802" height="584" alt="mb5" src="https://i.gyazo.com/129434d2714ee7a6d8c7d3063f3a2b2d.png" />
+<img src="https://i.gyazo.com/129434d2714ee7a6d8c7d3063f3a2b2d.png" />
 
 
 
