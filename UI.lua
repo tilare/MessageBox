@@ -367,6 +367,14 @@ function MessageBox:UpdateChatHeader()
             infoString = infoString .. "Unknown Level"
         end
 
+        if cache.race and cache.race ~= "" then
+            infoString = infoString .. " " .. cache.race
+        end
+
+        if cache.class and cache.class ~= "" then
+            infoString = infoString .. " " .. cache.class
+        end
+
         if cache.zone and cache.zone ~= "" and cache.zone ~= "Unknown" then
              infoString = infoString .. " • " .. cache.zone
         end

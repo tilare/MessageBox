@@ -208,17 +208,18 @@ function MessageBox:GetCount(c)
     c.count = table.getn(c.messages)
     return c.count
 end
-MessageBox.whoQueue = {} 
-MessageBox.whoTimer = 0
-MessageBox.WHO_INTERVAL = 30 
-MessageBox.WHO_TIMEOUT = 10
-MessageBox.WHO_QUEUE_MAX = 50
-MessageBox.RENDER_THROTTLE = 0.05
-MessageBox.waitingForWhoResult = false
-MessageBox.waitingForWhoSince = 0
-MessageBox.currentWhoEntry = nil
+MessageBox.whoPlayerQueue = {}
+MessageBox.whoScanInProgress = false
+MessageBox.whoLastSent = nil
+MessageBox.whoPendingName = nil
+MessageBox.whoApplyBusy = false
 MessageBox.whoPollFrame = nil
 MessageBox.whoPollAccum = 0
+MessageBox.WHO_INTERVAL = 30
+MessageBox.WHO_TIMEOUT = 10
+MessageBox.WHO_MAX_ATTEMPTS = 5
+MessageBox.WHO_QUEUE_MAX = 50
+MessageBox.RENDER_THROTTLE = 0.05
 MessageBox.whoSuppressChat = false
 
 MessageBox.URLPattern = {
