@@ -66,6 +66,8 @@ MessageBox.layout = {
 -- Contact list dirty flag
 MessageBox.contactListDirty = false
 MessageBox.CONTACT_LIST_THROTTLE = 0.1
+-- Set when CHAT_MSG_WHISPER is handled so ChatFrame_SendTell can skip switching contacts.
+MessageBox.suppressSendTellForSwitch = nil
 
 -- Texture & font paths
 local A = "Interface\\AddOns\\MessageBox\\img\\"

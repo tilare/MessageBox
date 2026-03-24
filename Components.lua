@@ -136,9 +136,12 @@ function MessageBox:UpdateMinimapBadge()
         end
     end
 
-    -- Notification popup
+    -- Floating notification: only when not using "open window on whisper", main window is closed,
+    -- and popup notifications are enabled (sidebar + minimap still update when main is open).
     if self.notificationPopup then
-        if totalUnread > 0 and self.settings.popupNotificationsEnabled and not self.settings.openWindowOnWhisper then
+        if totalUnread > 0 and self.settings.popupNotificationsEnabled
+            and not self.settings.openWindowOnWhisper
+            and not (self.frame and self.frame:IsVisible()) then
             self.notificationPopup:Show()
             self.notificationPopup.badge:Show()
             self.notificationPopup.countText:SetText(totalUnread)
