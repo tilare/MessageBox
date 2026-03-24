@@ -983,6 +983,7 @@ function MessageBox:OpenDetachedWindow(contact)
     
     if self.detachedWindows[contact] then
         self.detachedWindows[contact]:Show()
+        MessageBox:AddToWhoQueue(contact)
         return
     end
 
@@ -1199,4 +1200,6 @@ function MessageBox:OpenDetachedWindow(contact)
     end
 
     self:ApplyTheme()
+    MessageBox:AddToWhoQueue(contact)
+    f:Show()
 end

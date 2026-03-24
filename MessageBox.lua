@@ -39,12 +39,13 @@ function MessageBox:OnLoad()
 
     MessageBox:SetupHooks()
     
-    MessageBox.whoElapsed = 0
+    MessageBox.mbSecondTick = 0
     MessageBox.eventFrame:SetScript("OnUpdate", function()
-        MessageBox.whoElapsed = MessageBox.whoElapsed + arg1
-        if MessageBox.whoElapsed < 1 then return end
-        MessageBox.whoElapsed = 0
         MessageBox:ProcessWhoQueue()
+
+        MessageBox.mbSecondTick = MessageBox.mbSecondTick + arg1
+        if MessageBox.mbSecondTick < 1 then return end
+        MessageBox.mbSecondTick = 0
 
         -- Periodic crash save flush
         if MessageBox.hasNampower then
@@ -127,6 +128,8 @@ function MessageBox:OnEvent(event)
         if MessageBox_pfUISkin then
             MessageBox_pfUISkin()
         end
+
+        MessageBox:InstallWhoUiHooks()
 
     elseif event == "PLAYER_ENTERING_WORLD" then
         if MessageBox_pfUISkin then
