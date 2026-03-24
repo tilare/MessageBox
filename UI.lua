@@ -298,24 +298,29 @@ function MessageBox:UpdateChatHeader()
         self.chatHeader.pinBtn:SetNormalTexture(MessageBox.textures.pin)
     end
     
+    if not self.playerCache[name] then
+        self.playerCache[name] = {}
+    end
     local cache = self.playerCache[name]
-    
-    if not cache then
-         for i = 1, GetNumFriends() do
-             local fName, fLevel, fClass, fArea, fConnected, fStatus = GetFriendInfo(i)
-             if fName and string.lower(fName) == string.lower(name) then
-                 cache = {
-                     level = fLevel,
-                     class = fClass,
-                     classUpper = fClass and string.upper(fClass) or nil,
-                     zone = fArea,
-                     status = fStatus,
-                     guild = nil
-                 }
-                 self.playerCache[name] = cache
-                 break
-             end
-         end
+
+    -- Fill from friends list when WHO hasn't provided class yet (also matches "Name-Realm" to friend "Name")
+    if not cache.isGM and not cache.class then
+        local nameLower = string.lower(name)
+        local shortLower = string.lower(self:PlayerNameWithoutRealm(name) or name)
+        for i = 1, GetNumFriends() do
+            local fName, fLevel, fClass, fArea, fConnected, fStatus = GetFriendInfo(i)
+            if fName then
+                local fLower = string.lower(fName)
+                if fLower == nameLower or fLower == shortLower then
+                    cache.level = fLevel
+                    cache.class = fClass
+                    cache.classUpper = fClass and string.upper(fClass) or nil
+                    cache.zone = fArea
+                    cache.status = fStatus
+                    break
+                end
+            end
+        end
     end
 
     if cache and cache.isGM then
@@ -352,35 +357,29 @@ function MessageBox:UpdateChatHeader()
         local infoString = ""
         local coords = {0, 0.25, 0, 0.25} 
 
-        if cache then
-            if cache.guild and cache.guild ~= "" then
-                infoString = "<" .. cache.guild .. "> • "
-            end
-            
-            if cache.level and cache.level > 0 then
-                infoString = infoString .. "Level " .. cache.level
-            else
-                infoString = infoString .. "Unknown Level"
-            end
-            
-            if cache.zone and cache.zone ~= "" and cache.zone ~= "Unknown" then
-                 infoString = infoString .. " • " .. cache.zone
-            end
-
-            if cache.class and CLASS_ICON_TCOORDS[cache.classUpper] then
-                coords = CLASS_ICON_TCOORDS[cache.classUpper]
-                self.chatHeader.avatarBtn.icon:SetTexture(MessageBox.textures.classIcons)
-                self.chatHeader.avatarBtn.icon:SetTexCoord(unpack(coords))
-            else
-                 self.chatHeader.avatarBtn.icon:SetTexture(MessageBox.textures.iconQuestion)
-                 self.chatHeader.avatarBtn.icon:SetTexCoord(0.05, 0.95, 0.05, 0.95)
-            end
-        else
-            infoString = "Offline or Unknown"
-            self.chatHeader.avatarBtn.icon:SetTexture(MessageBox.textures.iconQuestion)
-            self.chatHeader.avatarBtn.icon:SetTexCoord(0.05, 0.95, 0.05, 0.95)
+        if cache.guild and cache.guild ~= "" then
+            infoString = "<" .. cache.guild .. "> • "
         end
-        
+
+        if cache.level and cache.level > 0 then
+            infoString = infoString .. "Level " .. cache.level
+        else
+            infoString = infoString .. "Unknown Level"
+        end
+
+        if cache.zone and cache.zone ~= "" and cache.zone ~= "Unknown" then
+             infoString = infoString .. " • " .. cache.zone
+        end
+
+        if cache.class and CLASS_ICON_TCOORDS[cache.classUpper] then
+            coords = CLASS_ICON_TCOORDS[cache.classUpper]
+            self.chatHeader.avatarBtn.icon:SetTexture(MessageBox.textures.classIcons)
+            self.chatHeader.avatarBtn.icon:SetTexCoord(unpack(coords))
+        else
+             self.chatHeader.avatarBtn.icon:SetTexture(MessageBox.textures.iconQuestion)
+             self.chatHeader.avatarBtn.icon:SetTexCoord(0.05, 0.95, 0.05, 0.95)
+        end
+
         self.chatHeader.infoText:SetText(infoString)
     end
 
@@ -809,7 +808,7 @@ function MessageBox:CreateFrame()
     bellButton:SetScript("OnLeave", function() GameTooltip:Hide() end)
     bellButton.UpdateState()
     MessageBox.bellButton = bellButton
-    
+
     local settingsDropDown = CreateFrame("Frame", "MessageBoxSettingsDropDown", frame, "UIDropDownMenuTemplate")
 
     -- Throttled relayout on resize
@@ -1251,6 +1250,8 @@ function MessageBox:SelectContact(contact)
     if MessageBox.whisperInput then
         MessageBox.whisperInput:SetFocus()
     end
+
+    MessageBox:AddToWhoQueue(contact)
 end
 
 function MessageBox:UpdateChatHistory(unreadCount, resetToBottom)
@@ -1380,7 +1381,8 @@ function MessageBox:ShowFrame()
 
     if self.selectedContact then 
         self:UpdateChatHeader()
-        self:UpdateChatHistory() 
+        self:UpdateChatHistory()
+        MessageBox:AddToWhoQueue(self.selectedContact)
     end
     if self.whisperInput then self.whisperInput:SetFocus() end
 end

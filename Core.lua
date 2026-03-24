@@ -15,6 +15,18 @@ MessageBox.visibleFriends = {}
 MessageBox.visibleConversations = {}
 
 MessageBox.playerCache = {}
+
+-- Whisper/chat may supply "Name-Realm"; GetWhoInfo and SendWho use the bare character name.
+-- If stripping would remove the whole name (e.g. malformed input), keep the original.
+function MessageBox:PlayerNameWithoutRealm(fullName)
+    if not fullName or fullName == "" then return nil end
+    local h = string.find(fullName, "-", 1, true)
+    if not h or h <= 1 then return fullName end
+    local short = string.sub(fullName, 1, h - 1)
+    if not short or short == "" then return fullName end
+    return short
+end
+
 MessageBox.detachedWindows = {} 
 MessageBox.friendSet = {}
 MessageBox.conversationOrderDirty = true
@@ -204,7 +216,10 @@ MessageBox.WHO_QUEUE_MAX = 50
 MessageBox.RENDER_THROTTLE = 0.05
 MessageBox.waitingForWhoResult = false
 MessageBox.waitingForWhoSince = 0
-MessageBox.currentWhoEntry = nil 
+MessageBox.currentWhoEntry = nil
+MessageBox.whoPollFrame = nil
+MessageBox.whoPollAccum = 0
+MessageBox.whoSuppressChat = false
 
 MessageBox.URLPattern = {
     WWW = {
