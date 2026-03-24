@@ -471,9 +471,9 @@ function MessageBox:CreateFrame()
     MessageBox.clipChild = clipChild
 
     local searchBox = CreateFrame("EditBox", "MessageBoxContactSearch", contactFrame, "InputBoxTemplate")
-    searchBox:SetWidth(120)
+    searchBox:SetWidth(L.CONTACT_WIDTH - 10)
     searchBox:SetHeight(20)
-    searchBox:SetPoint("TOP", contactFrame, "TOP", 0, -6)
+    searchBox:SetPoint("TOPLEFT", contactFrame, "TOPLEFT", 5, -6)
     searchBox:SetAutoFocus(false)
     searchBox:SetFontObject("GameFontHighlightSmall")
     
@@ -850,10 +850,9 @@ function MessageBox:RelayoutMainFrame()
         self.contactFrame:SetWidth(sidebarWidth)
     end
 
-    -- Search box width
     local searchBox = getglobal("MessageBoxContactSearch")
     if searchBox then
-        searchBox:SetWidth(sidebarWidth - 20)
+        searchBox:SetWidth(sidebarWidth - 10)
     end
 
     -- Clip child width
