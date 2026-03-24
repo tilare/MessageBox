@@ -186,30 +186,31 @@ function MessageBox:ApplyTheme()
         if self.UpdateScrollViews then self:UpdateScrollViews() end
     end
 
-    -- Search bar
-    local searchBox = getglobal("MessageBoxContactSearch")
-    if searchBox then
-        local left = getglobal(searchBox:GetName().."Left")
-        local middle = getglobal(searchBox:GetName().."Middle")
-        local right = getglobal(searchBox:GetName().."Right")
+    if not IsAddOnLoaded("pfUI") then
+        local searchBox = getglobal("MessageBoxContactSearch")
+        if searchBox then
+            local left = getglobal(searchBox:GetName() .. "Left")
+            local middle = getglobal(searchBox:GetName() .. "Middle")
+            local right = getglobal(searchBox:GetName() .. "Right")
 
-        if self.settings.modernTheme then
-            if left then left:Hide() end
-            if middle then middle:Hide() end
-            if right then right:Hide() end
-            
-            searchBox:SetBackdrop(themeDef.inputBackdrop)
-            searchBox:SetBackdropColor(unpack(inputColor))
-            searchBox:SetBackdropBorderColor(unpack(themeDef.panelBorderColor))
-        else
-            if left then left:Show() end
-            if middle then middle:Show() end
-            if right then right:Show() end
-            
-            searchBox:SetBackdrop(nil)
+            if self.settings.modernTheme then
+                if left then left:Hide() end
+                if middle then middle:Hide() end
+                if right then right:Hide() end
+
+                searchBox:SetBackdrop(themeDef.inputBackdrop)
+                searchBox:SetBackdropColor(unpack(inputColor))
+                searchBox:SetBackdropBorderColor(unpack(themeDef.panelBorderColor))
+            else
+                if left then left:Show() end
+                if middle then middle:Show() end
+                if right then right:Show() end
+
+                searchBox:SetBackdrop(nil)
+            end
+
+            searchBox:SetTextColor(unpack(textColor))
         end
-        
-        searchBox:SetTextColor(unpack(textColor))
     end
 
     if self.chatFrame then
@@ -275,19 +276,18 @@ function MessageBox:ApplyTheme()
         MessageBox:SkinIconButton(self.chatHeader.searchBtn, themeDef.flatButtons, selectionColor)
     end
 
-    -- Theme search bar
-    if self.searchBarFrame then
+    if not IsAddOnLoaded("pfUI") and self.searchBarFrame then
         if self.settings.modernTheme then
             self.searchBarFrame:SetBackdrop(themeDef.panelBackdrop)
             self.searchBarFrame:SetBackdropColor(unpack(panelColor))
             self.searchBarFrame:SetBackdropBorderColor(unpack(themeDef.panelBorderColor))
-            
+
             if self.searchBarFrame.searchInput then
                 self.searchBarFrame.searchInput:SetBackdrop(themeDef.inputBackdrop)
                 self.searchBarFrame.searchInput:SetBackdropColor(unpack(inputColor))
                 self.searchBarFrame.searchInput:SetBackdropBorderColor(unpack(themeDef.panelBorderColor))
             end
-            
+
             if self.searchBarFrame.prevBtn then
                 local btn = self.searchBarFrame.prevBtn
                 btn:SetNormalTexture(MessageBox.textures.caretUp)
@@ -307,7 +307,7 @@ function MessageBox:ApplyTheme()
                 end)
                 if btn.arrowText then btn.arrowText:Hide() end
             end
-            
+
             if self.searchBarFrame.nextBtn then
                 local btn = self.searchBarFrame.nextBtn
                 btn:SetNormalTexture(MessageBox.textures.caretDown)
@@ -327,8 +327,7 @@ function MessageBox:ApplyTheme()
                 end)
                 if btn.arrowText then btn.arrowText:Hide() end
             end
-            
-            -- Modern close button
+
             MessageBox:SkinCloseButton(self.searchBarFrame.closeBtn, true, 14)
         else
             self.searchBarFrame:SetBackdrop({
@@ -337,7 +336,7 @@ function MessageBox:ApplyTheme()
                 insets = {left = 0, right = 0, top = 0, bottom = 0}
             })
             self.searchBarFrame:SetBackdropColor(0, 0, 0, 0.5)
-            
+
             if self.searchBarFrame.searchInput then
                 self.searchBarFrame.searchInput:SetBackdrop({
                     bgFile = MessageBox.textures.tooltipBg,
@@ -348,8 +347,7 @@ function MessageBox:ApplyTheme()
                 self.searchBarFrame.searchInput:SetBackdropColor(0, 0, 0, 0.6)
                 self.searchBarFrame.searchInput:SetBackdropBorderColor(1, 1, 1, 1)
             end
-            
-            -- Classic scroll arrow buttons
+
             if self.searchBarFrame.prevBtn then
                 local btn = self.searchBarFrame.prevBtn
                 btn:SetNormalTexture(MessageBox.textures.scrollUpUp)
@@ -365,7 +363,7 @@ function MessageBox:ApplyTheme()
                 btn:SetScript("OnLeave", function() GameTooltip:Hide() end)
                 if btn.arrowText then btn.arrowText:Hide() end
             end
-            
+
             if self.searchBarFrame.nextBtn then
                 local btn = self.searchBarFrame.nextBtn
                 btn:SetNormalTexture(MessageBox.textures.scrollDownUp)
@@ -381,8 +379,7 @@ function MessageBox:ApplyTheme()
                 btn:SetScript("OnLeave", function() GameTooltip:Hide() end)
                 if btn.arrowText then btn.arrowText:Hide() end
             end
-            
-            -- Classic close button
+
             MessageBox:SkinCloseButton(self.searchBarFrame.closeBtn, false, 18)
         end
     end
