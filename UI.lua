@@ -809,13 +809,67 @@ function MessageBox:CreateFrame()
     bellButton:SetScript("OnLeave", function() GameTooltip:Hide() end)
     bellButton.UpdateState()
     MessageBox.bellButton = bellButton
-    
+
+    local openWindowButton = CreateFrame("Button", nil, frame)
+    openWindowButton:SetWidth(20)
+    openWindowButton:SetHeight(20)
+    openWindowButton:SetPoint("LEFT", bellButton, "RIGHT", 5, 0)
+    openWindowButton:SetHighlightTexture(MessageBox.textures.minimizeBtnHi)
+
+    openWindowButton.UpdateState = function()
+        if MessageBox.settings.openWindowOnWhisper then
+            openWindowButton:SetNormalTexture(MessageBox.textures.envelopeOpen)
+            openWindowButton:SetAlpha(1.0)
+            openWindowButton:GetNormalTexture():SetVertexColor(1, 1, 1)
+        else
+            openWindowButton:SetNormalTexture(MessageBox.textures.envelope)
+            openWindowButton:SetAlpha(0.65)
+            openWindowButton:GetNormalTexture():SetVertexColor(1, 1, 1)
+        end
+    end
+
+    openWindowButton:SetScript("OnClick", function()
+        MessageBox.settings.openWindowOnWhisper = not MessageBox.settings.openWindowOnWhisper
+        this.UpdateState()
+        MessageBox:UpdateMinimapBadge()
+        if MessageBox.settingsFrame and MessageBox.settingsFrame.checks and MessageBox.settingsFrame.checks["openWindowOnWhisper"] then
+            MessageBox.settingsFrame.checks["openWindowOnWhisper"]:SetChecked(MessageBox.settings.openWindowOnWhisper)
+        end
+        if GameTooltip:IsOwned(this) then
+            this:GetScript("OnEnter")()
+        end
+    end)
+
+    openWindowButton:SetScript("OnEnter", function()
+        GameTooltip:SetOwner(this, "ANCHOR_RIGHT")
+        GameTooltip:SetText("Open Window on New Whisper")
+        if MessageBox.settings.openWindowOnWhisper then
+            GameTooltip:AddLine("Status: |cff00ff00Open window|r", 1, 1, 1)
+            GameTooltip:AddLine("The floating notification icon is not used.", 0.8, 0.8, 0.8, true)
+        else
+            GameTooltip:AddLine("Status: |cffffcc00Notification icon|r", 1, 1, 1)
+        end
+        GameTooltip:Show()
+    end)
+    openWindowButton:SetScript("OnLeave", function() GameTooltip:Hide() end)
+    openWindowButton.UpdateState()
+    MessageBox.openWindowButton = openWindowButton
+
     local settingsDropDown = CreateFrame("Frame", "MessageBoxSettingsDropDown", frame, "UIDropDownMenuTemplate")
 
     -- Throttled relayout on resize
     MessageBox.relayoutDirty = false
     MessageBox.relayoutLastUpdate = 0
     frame:SetScript("OnUpdate", function()
+        if MessageBox.pendingWhisperFocusFrames then
+            MessageBox.pendingWhisperFocusFrames = MessageBox.pendingWhisperFocusFrames - 1
+            if MessageBox.pendingWhisperFocusFrames <= 0 then
+                MessageBox.pendingWhisperFocusFrames = nil
+                if MessageBox.whisperInput and MessageBox.frame and MessageBox.frame:IsVisible() then
+                    MessageBox.whisperInput:SetFocus()
+                end
+            end
+        end
         if not MessageBox.relayoutDirty then return end
         local now = GetTime()
         if (now - MessageBox.relayoutLastUpdate) < 0.05 then return end
@@ -1249,7 +1303,7 @@ function MessageBox:SelectContact(contact)
     MessageBox:UpdateChatHistory(unreadToPass, true)
     
     if MessageBox.whisperInput then
-        MessageBox.whisperInput:SetFocus()
+        MessageBox:ScheduleWhisperInputFocus()
     end
 end
 
@@ -1371,6 +1425,11 @@ function MessageBox:SendWhisper()
     end
 end
 
+function MessageBox:ScheduleWhisperInputFocus()
+    if not self.whisperInput then return end
+    self.pendingWhisperFocusFrames = 2
+end
+
 function MessageBox:ShowFrame()
     if not self.frame then self:CreateFrame() end
     self.frame:Show()
@@ -1382,13 +1441,14 @@ function MessageBox:ShowFrame()
         self:UpdateChatHeader()
         self:UpdateChatHistory() 
     end
-    if self.whisperInput then self.whisperInput:SetFocus() end
+    if self.whisperInput then self:ScheduleWhisperInputFocus() end
 end
 
 function MessageBox:HideFrame()
     if self.chatSearchActive then
         self:CloseSearchBar()
     end
+    self.pendingWhisperFocusFrames = nil
     if self.frame then self.frame:Hide() end
 end
 
