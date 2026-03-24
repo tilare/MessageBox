@@ -138,7 +138,7 @@ function MessageBox:UpdateMinimapBadge()
 
     -- Notification popup
     if self.notificationPopup then
-        if totalUnread > 0 and self.settings.popupNotificationsEnabled then
+        if totalUnread > 0 and self.settings.popupNotificationsEnabled and not self.settings.openWindowOnWhisper then
             self.notificationPopup:Show()
             self.notificationPopup.badge:Show()
             self.notificationPopup.countText:SetText(totalUnread)
@@ -175,7 +175,7 @@ function MessageBox:ShowSettingsFrame()
         local f = CreateFrame("Frame", "MessageBoxSettingsFrame", UIParent)
         tinsert(UISpecialFrames, "MessageBoxSettingsFrame")
         f:SetWidth(200)
-        f:SetHeight(355)
+        f:SetHeight(381)
         
         if self.settingsButton and self.settingsButton:IsVisible() then
              f:SetPoint("BOTTOMLEFT", self.settingsButton, "TOPLEFT", 0, 5)
@@ -285,6 +285,11 @@ function MessageBox:ShowSettingsFrame()
 
         f.checks["notificationSound"] = CreateCheck("Notification Sound", "notificationSound", y,
             nil, "Play a notification sound when a new whisper is received.")
+        y = y + yStep
+
+        f.checks["openWindowOnWhisper"] = CreateCheck("Open Window on New Whisper", "openWindowOnWhisper", y,
+            function() MessageBox:UpdateMinimapBadge() if MessageBox.openWindowButton then MessageBox.openWindowButton.UpdateState() end end,
+            "Open MessageBox and select the sender when a whisper arrives while the window is closed, instead of the floating notification icon.")
         y = y + yStep + sectionGap
 
         -- Section: Display
@@ -389,6 +394,7 @@ function MessageBox:ShowSettingsFrame()
         self.settingsFrame.checks["interceptWhispers"]:SetChecked(MessageBox.settings.interceptWhispers)
         self.settingsFrame.checks["suppressWhispers"]:SetChecked(MessageBox.settings.suppressWhispers)
         self.settingsFrame.checks["notificationSound"]:SetChecked(MessageBox.settings.notificationSound)
+        self.settingsFrame.checks["openWindowOnWhisper"]:SetChecked(MessageBox.settings.openWindowOnWhisper)
         self.settingsFrame.checks["showMinimapButton"]:SetChecked(MessageBox.settings.showMinimapButton)
         self.settingsFrame.checks["hideOffline"]:SetChecked(MessageBox.settings.hideOffline)
         self.settingsFrame.checks["use12HourFormat"]:SetChecked(MessageBox.settings.use12HourFormat)

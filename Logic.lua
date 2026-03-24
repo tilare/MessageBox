@@ -298,7 +298,13 @@ function MessageBox:AddMessage(contact, message, isOutgoing)
             self.unreadCounts[contact] = self.unreadCounts[contact] + 1
             self:UpdateMinimapBadge()
             
-            if self.settings.popupNotificationsEnabled and (not self.frame or not self.frame:IsVisible()) then
+            if self.settings.openWindowOnWhisper then
+                self:SelectContact(contact)
+                self:ShowFrame()
+                if self.settings.notificationSound then
+                    PlaySoundFile("Interface\\AddOns\\MessageBox\\sound\\notification.wav")
+                end
+            elseif self.settings.popupNotificationsEnabled and (not self.frame or not self.frame:IsVisible()) then
                 self:ShowNotificationPopup()
             end
         end
@@ -318,6 +324,13 @@ function MessageBox:AddMessage(contact, message, isOutgoing)
             
             self.chatHistory:AddMessage(formattedMessage)
             self.chatHistory:ScrollToBottom()
+            if self.chatScrollBar then
+                self.chatScrollBar.isUpdating = true
+                self.chatScrollBar:SetMinMaxValues(1, c.count)
+                self.chatScrollBar:SetValue(c.count)
+                self.chatScrollBar.isUpdating = false
+                self.chatScrollBar:Show()
+            end
             self:UpdateChatHeader()
         end
     end
@@ -361,6 +374,7 @@ function MessageBox:AddSystemMessage(contact, message, isTransient)
             self.chatScrollBar:SetMinMaxValues(1, c.count)
             self.chatScrollBar:SetValue(c.count)
             self.chatScrollBar.isUpdating = false
+            self.chatScrollBar:Show()
         end
     end
 end
