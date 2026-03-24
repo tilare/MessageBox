@@ -166,6 +166,26 @@ local function skinStdButton(btn)
     end)
 end
 
+-- Same pattern as Outfitter category rows: pfUI SkinCollapseButton + Blizzard +/- paths for the hook.
+local TEX_UI_PLUS = "Interface\\Buttons\\UI-PlusButton-Up"
+local TEX_UI_MINUS = "Interface\\Buttons\\UI-MinusButton-Up"
+
+local function skinCollapseSectionToggle(btn, blizzardNormalTex)
+    if not btn or not canRun() then return end
+    pcall(function()
+        pfUI.api.SkinCollapseButton(btn)
+        -- SkinCollapseButton uses a child Button for the +/- chrome; it would steal clicks from the parent.
+        if btn.icon then
+            btn.icon:EnableMouse(false)
+        end
+        if btn.icon and btn.icon.backdrop then
+            btn.icon.backdrop:SetPoint("TOPLEFT", -2, 1)
+            btn.icon.backdrop:SetPoint("BOTTOMRIGHT", 1, -2)
+        end
+        btn:SetNormalTexture(blizzardNormalTex)
+    end)
+end
+
 local function skinCheckbox(cb, size)
     if not cb or not canRun() then return end
     pcall(function()
@@ -312,12 +332,12 @@ function MessageBoxPfUI_ApplyAfterTheme()
         skinStdButton(MessageBox.settingsButton)
 
         if MessageBox.friendsHeader then
-            skinStdButton(MessageBox.friendsHeader.plusButton)
-            skinStdButton(MessageBox.friendsHeader.minusButton)
+            skinCollapseSectionToggle(MessageBox.friendsHeader.plusButton, TEX_UI_PLUS)
+            skinCollapseSectionToggle(MessageBox.friendsHeader.minusButton, TEX_UI_MINUS)
         end
         if MessageBox.conversationsHeader then
-            skinStdButton(MessageBox.conversationsHeader.plusButton)
-            skinStdButton(MessageBox.conversationsHeader.minusButton)
+            skinCollapseSectionToggle(MessageBox.conversationsHeader.plusButton, TEX_UI_PLUS)
+            skinCollapseSectionToggle(MessageBox.conversationsHeader.minusButton, TEX_UI_MINUS)
         end
 
         skinScroll(getglobal("MessageBoxFriendsScrollScrollBar"))

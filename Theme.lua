@@ -1,7 +1,8 @@
 -- Theme.lua
 -- Theme logic, Apply colors
 
--- When pfUI's MessageBox skin is active, MessageBox_pfUI.lua styles the contact search and chat search bar.
+-- When pfUI's MessageBox skin is active, MessageBox_pfUI.lua styles the contact search, chat search bar,
+-- and friends/conversations section expand toggles (SkinCollapseButton).
 -- If pfUI is loaded but that skin is disabled, ApplyTheme must paint those (same rule as pfUI_config.disabled["skin_MessageBox"]).
 local function MessageBoxTheme_PfUISkinStylesSearchChrome()
     if not IsAddOnLoaded("pfUI") then return false end
@@ -544,49 +545,52 @@ function MessageBox:ApplyTheme()
             if header.text then
                 header.text:SetTextColor(unpack(textColor))
             end
-            
-            local plus = header.plusButton
-            if themeDef.flatButtons then
-                plus:SetNormalTexture("")
-                plus:SetPushedTexture("")
-                plus:SetHighlightTexture("")
-                plus:SetBackdrop(themeDef.panelBackdrop)
-                plus:SetBackdropColor(unpack(buttonColor))
-                plus:SetBackdropBorderColor(0.3,0.3,0.3,1)
-                plus.flatBg = true
-                if plus.text then 
-                    plus.text:Show() 
-                    plus.text:SetTextColor(unpack(textColor))
-                end
-            else
-                plus:SetNormalTexture(MessageBox.textures.plusUp)
-                plus:SetPushedTexture(MessageBox.textures.plusDown)
-                plus:SetHighlightTexture(MessageBox.textures.plusHi)
-                plus:SetBackdrop(nil)
-                plus.flatBg = false
-                if plus.text then plus.text:Hide() end
-            end
 
-            local minus = header.minusButton
-            if themeDef.flatButtons then
-                minus:SetNormalTexture("")
-                minus:SetPushedTexture("")
-                minus:SetHighlightTexture("")
-                minus:SetBackdrop(themeDef.panelBackdrop)
-                minus:SetBackdropColor(unpack(buttonColor))
-                minus:SetBackdropBorderColor(0.3,0.3,0.3,1)
-                minus.flatBg = true
-                if minus.text then 
-                    minus.text:Show() 
-                    minus.text:SetTextColor(unpack(textColor))
+            -- pfUI MessageBox skin uses SkinCollapseButton on these (Blizzard +/- paths); skip theme textures.
+            if not MessageBoxTheme_PfUISkinStylesSearchChrome() then
+                local plus = header.plusButton
+                if themeDef.flatButtons then
+                    plus:SetNormalTexture("")
+                    plus:SetPushedTexture("")
+                    plus:SetHighlightTexture("")
+                    plus:SetBackdrop(themeDef.panelBackdrop)
+                    plus:SetBackdropColor(unpack(buttonColor))
+                    plus:SetBackdropBorderColor(0.3,0.3,0.3,1)
+                    plus.flatBg = true
+                    if plus.text then
+                        plus.text:Show()
+                        plus.text:SetTextColor(unpack(textColor))
+                    end
+                else
+                    plus:SetNormalTexture(MessageBox.textures.plusUp)
+                    plus:SetPushedTexture(MessageBox.textures.plusDown)
+                    plus:SetHighlightTexture(MessageBox.textures.plusHi)
+                    plus:SetBackdrop(nil)
+                    plus.flatBg = false
+                    if plus.text then plus.text:Hide() end
                 end
-            else
-                minus:SetNormalTexture(MessageBox.textures.minusUp)
-                minus:SetPushedTexture(MessageBox.textures.minusDown)
-                minus:SetHighlightTexture(MessageBox.textures.minusHi)
-                minus:SetBackdrop(nil)
-                minus.flatBg = false
-                if minus.text then minus.text:Hide() end
+
+                local minus = header.minusButton
+                if themeDef.flatButtons then
+                    minus:SetNormalTexture("")
+                    minus:SetPushedTexture("")
+                    minus:SetHighlightTexture("")
+                    minus:SetBackdrop(themeDef.panelBackdrop)
+                    minus:SetBackdropColor(unpack(buttonColor))
+                    minus:SetBackdropBorderColor(0.3,0.3,0.3,1)
+                    minus.flatBg = true
+                    if minus.text then
+                        minus.text:Show()
+                        minus.text:SetTextColor(unpack(textColor))
+                    end
+                else
+                    minus:SetNormalTexture(MessageBox.textures.minusUp)
+                    minus:SetPushedTexture(MessageBox.textures.minusDown)
+                    minus:SetHighlightTexture(MessageBox.textures.minusHi)
+                    minus:SetBackdrop(nil)
+                    minus.flatBg = false
+                    if minus.text then minus.text:Hide() end
+                end
             end
         end
     end
