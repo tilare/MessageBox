@@ -1397,7 +1397,6 @@ function MessageBox:SendWhisper()
         return
     end
 
-    MessageBox:AddMessage(MessageBox.selectedContact, message, true)
     SendChatMessage(message, "WHISPER", nil, MessageBox.selectedContact)
     
     MessageBox.whisperInput:SetText("")
