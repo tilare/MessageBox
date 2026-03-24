@@ -1,6 +1,15 @@
 -- Theme.lua
 -- Theme logic, Apply colors
 
+-- When pfUI's MessageBox skin is active, MessageBox_pfUI.lua styles the contact search and chat search bar.
+-- If pfUI is loaded but that skin is disabled, ApplyTheme must paint those (same rule as pfUI_config.disabled["skin_MessageBox"]).
+local function MessageBoxTheme_PfUISkinStylesSearchChrome()
+    if not IsAddOnLoaded("pfUI") then return false end
+    if not pfUI_config then return true end
+    if pfUI_config.disabled and pfUI_config.disabled["skin_MessageBox"] == "1" then return false end
+    return true
+end
+
 -- button for modern or classic theme
 function MessageBox:SkinCloseButton(btn, isModern, size)
     if not btn then return end
@@ -186,7 +195,7 @@ function MessageBox:ApplyTheme()
         if self.UpdateScrollViews then self:UpdateScrollViews() end
     end
 
-    if not IsAddOnLoaded("pfUI") then
+    if not MessageBoxTheme_PfUISkinStylesSearchChrome() then
         local searchBox = getglobal("MessageBoxContactSearch")
         if searchBox then
             local left = getglobal(searchBox:GetName() .. "Left")
@@ -276,7 +285,7 @@ function MessageBox:ApplyTheme()
         MessageBox:SkinIconButton(self.chatHeader.searchBtn, themeDef.flatButtons, selectionColor)
     end
 
-    if not IsAddOnLoaded("pfUI") and self.searchBarFrame then
+    if not MessageBoxTheme_PfUISkinStylesSearchChrome() and self.searchBarFrame then
         if self.settings.modernTheme then
             self.searchBarFrame:SetBackdrop(themeDef.panelBackdrop)
             self.searchBarFrame:SetBackdropColor(unpack(panelColor))
