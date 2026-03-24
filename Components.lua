@@ -1092,7 +1092,6 @@ function MessageBox:OpenDetachedWindow(contact)
     editBox:SetScript("OnEnterPressed", function()
         local msg = this:GetText()
         if msg and msg ~= "" then
-            MessageBox:AddMessage(contact, msg, true)
             SendChatMessage(msg, "WHISPER", nil, contact)
             this:SetText("")
             this:ClearFocus()

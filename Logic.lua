@@ -304,6 +304,8 @@ function MessageBox:AddMessage(contact, message, isOutgoing)
                 if self.settings.notificationSound then
                     PlaySoundFile("Interface\\AddOns\\MessageBox\\sound\\notification.wav")
                 end
+                -- SelectContact already refreshed chatHistory; skip incremental AddMessage below
+                return
             elseif self.settings.popupNotificationsEnabled and (not self.frame or not self.frame:IsVisible()) then
                 self:ShowNotificationPopup()
             end
