@@ -208,6 +208,15 @@ function MessageBox:SetupHooks()
         self.original_ChatFrame_SendTell = ChatFrame_SendTell
         ChatFrame_SendTell = function(name, chatFrame)
             if MessageBox.settings.interceptWhispers then
+                -- When "open window on whisper" is off, Blizzard's SendTell during incoming whisper
+                -- would steal focus; suppress that path only (AddMessage handles unread/badge).
+                if not MessageBox.settings.openWindowOnWhisper then
+                    local suppress = MessageBox.suppressSendTellForSwitch
+                    if suppress and name and string.lower(suppress) == string.lower(name) then
+                        MessageBox.suppressSendTellForSwitch = nil
+                        return
+                    end
+                end
                 MessageBox:SelectContact(name)
                 MessageBox:ShowFrame()
                 return
@@ -219,6 +228,17 @@ function MessageBox:SetupHooks()
     if not self.original_ChatFrame_OnEvent then
         self.original_ChatFrame_OnEvent = ChatFrame_OnEvent
         ChatFrame_OnEvent = function(event)
+            -- When not auto-opening on whisper, mark SendTell from this sender so we can ignore it
+            -- if the user is already viewing another conversation in the main frame.
+            if event == "CHAT_MSG_WHISPER" and MessageBox.settings.interceptWhispers
+                and not MessageBox.settings.openWindowOnWhisper then
+                local sender = arg2
+                local sel = MessageBox.selectedContact
+                if sender and sel and MessageBox.frame and MessageBox.frame:IsVisible()
+                    and string.lower(sel) ~= string.lower(sender) then
+                    MessageBox.suppressSendTellForSwitch = sender
+                end
+            end
             if MessageBox.settings.suppressWhispers then
                 if event == "CHAT_MSG_WHISPER" or event == "CHAT_MSG_WHISPER_INFORM" then
                     return
