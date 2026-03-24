@@ -691,7 +691,7 @@ function MessageBox:CreateFrame()
         if (now - MessageBox.chatLastRenderTime) < MessageBox.RENDER_THROTTLE then return end
         MessageBox.chatRenderDirty = false
         MessageBox.chatLastRenderTime = now
-        MessageBox:UpdateChatHistory()
+        MessageBox:UpdateChatHistory(nil, false)
     end)
     
     chatHistory:EnableMouse(true)
@@ -1299,7 +1299,7 @@ function MessageBox:SelectContact(contact)
     MessageBox:UpdateMinimapBadge()
     MessageBox:UpdateContactList()
     
-    MessageBox:UpdateChatHistory(unreadToPass, true)
+    MessageBox:UpdateChatHistory(unreadToPass)
     
     if MessageBox.whisperInput then
         MessageBox:ScheduleWhisperInputFocus()
@@ -1307,6 +1307,15 @@ function MessageBox:SelectContact(contact)
 end
 
 function MessageBox:UpdateChatHistory(unreadCount, resetToBottom)
+    -- Default: jump to the latest message. Only preserve scroll position when re-rendering
+    -- after the user moved the scrollbar (resetToBottom == false) or during in-chat search.
+    if resetToBottom == nil then
+        resetToBottom = true
+    end
+    if MessageBox.chatSearchActive then
+        resetToBottom = false
+    end
+
     if MessageBox.detachedWindows then
         for name, win in pairs(MessageBox.detachedWindows) do
             if win and win:IsVisible() and win.UpdateDisplay then
@@ -1419,7 +1428,7 @@ function MessageBox:SendWhisper()
     if MessageBox.chatScrollBar then
         local min, max = MessageBox.chatScrollBar:GetMinMaxValues()
         MessageBox.chatScrollBar:SetValue(max)
-        MessageBox:UpdateChatHistory(nil, true) 
+        MessageBox:UpdateChatHistory()
     end
 end
 
