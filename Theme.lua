@@ -270,6 +270,8 @@ function MessageBox:ApplyTheme()
 
     MessageBox:SkinIconButton(self.bellButton, themeDef.flatButtons, selectionColor)
 
+    MessageBox:SkinIconButton(self.openWindowButton, themeDef.flatButtons, selectionColor)
+
     if self.chatHeader then
         MessageBox:SkinIconButton(self.chatHeader.pinBtn, themeDef.flatButtons, selectionColor)
         MessageBox:SkinIconButton(self.chatHeader.searchBtn, themeDef.flatButtons, selectionColor)
