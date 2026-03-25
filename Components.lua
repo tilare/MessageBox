@@ -288,11 +288,6 @@ function MessageBox:ShowSettingsFrame()
 
         f.checks["notificationSound"] = CreateCheck("Notification Sound", "notificationSound", y,
             nil, "Play a notification sound when a new whisper is received.")
-        y = y + yStep
-
-        f.checks["openWindowOnWhisper"] = CreateCheck("Open Window on New Whisper", "openWindowOnWhisper", y,
-            function() MessageBox:UpdateMinimapBadge() if MessageBox.openWindowButton then MessageBox.openWindowButton.UpdateState() end end,
-            "Open MessageBox and select the sender when a whisper arrives while the window is closed, instead of the floating notification icon.")
         y = y + yStep + sectionGap
 
         -- Section: Display
@@ -397,7 +392,6 @@ function MessageBox:ShowSettingsFrame()
         self.settingsFrame.checks["interceptWhispers"]:SetChecked(MessageBox.settings.interceptWhispers)
         self.settingsFrame.checks["suppressWhispers"]:SetChecked(MessageBox.settings.suppressWhispers)
         self.settingsFrame.checks["notificationSound"]:SetChecked(MessageBox.settings.notificationSound)
-        self.settingsFrame.checks["openWindowOnWhisper"]:SetChecked(MessageBox.settings.openWindowOnWhisper)
         self.settingsFrame.checks["showMinimapButton"]:SetChecked(MessageBox.settings.showMinimapButton)
         self.settingsFrame.checks["hideOffline"]:SetChecked(MessageBox.settings.hideOffline)
         self.settingsFrame.checks["use12HourFormat"]:SetChecked(MessageBox.settings.use12HourFormat)

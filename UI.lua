@@ -832,9 +832,6 @@ function MessageBox:CreateFrame()
         MessageBox.settings.openWindowOnWhisper = not MessageBox.settings.openWindowOnWhisper
         this.UpdateState()
         MessageBox:UpdateMinimapBadge()
-        if MessageBox.settingsFrame and MessageBox.settingsFrame.checks and MessageBox.settingsFrame.checks["openWindowOnWhisper"] then
-            MessageBox.settingsFrame.checks["openWindowOnWhisper"]:SetChecked(MessageBox.settings.openWindowOnWhisper)
-        end
         if GameTooltip:IsOwned(this) then
             this:GetScript("OnEnter")()
         end
@@ -842,12 +839,11 @@ function MessageBox:CreateFrame()
 
     openWindowButton:SetScript("OnEnter", function()
         GameTooltip:SetOwner(this, "ANCHOR_RIGHT")
-        GameTooltip:SetText("Open Window on New Whisper")
+        GameTooltip:SetText("Open Window on Whisper")
         if MessageBox.settings.openWindowOnWhisper then
-            GameTooltip:AddLine("Status: |cff00ff00Open window|r", 1, 1, 1)
-            GameTooltip:AddLine("The floating notification icon is not used.", 0.8, 0.8, 0.8, true)
+            GameTooltip:AddLine("Status: |cff00ff00Enabled|r", 1, 1, 1)
         else
-            GameTooltip:AddLine("Status: |cffffcc00Notification icon|r", 1, 1, 1)
+            GameTooltip:AddLine("Status: |cffff0000Disabled|r", 1, 1, 1)
         end
         GameTooltip:Show()
     end)
