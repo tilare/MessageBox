@@ -389,9 +389,33 @@ end
 
 local hooksInstalled = false
 
+-- Friends/conversations call SkinScrollbar on every UpdateScrollViews(); intercept so pfUI styling wins.
+local function trySkinContactListScrollbarsPfUI(frame)
+    if not isMessageBoxPfUISkinEnabled() then return false end
+    local parentName = frame:GetName()
+    if parentName ~= "MessageBoxFriendsScroll" and parentName ~= "MessageBoxConversationsScroll" then
+        return false
+    end
+    local sb
+    if frame:GetObjectType() == "Slider" then
+        sb = frame
+    else
+        sb = getglobal(frame:GetName() .. "ScrollBar")
+    end
+    if sb then skinScroll(sb) end
+    return true
+end
+
 local function installHooks()
     if hooksInstalled or not MessageBox then return end
     hooksInstalled = true
+
+    local origSkinScrollbar = MessageBox.SkinScrollbar
+    MessageBox.SkinScrollbar = function(self, frame)
+        if not frame then return end
+        if trySkinContactListScrollbarsPfUI(frame) then return end
+        return origSkinScrollbar(self, frame)
+    end
 
     local origApply = MessageBox.ApplyTheme
     MessageBox.ApplyTheme = function(self)
