@@ -333,6 +333,20 @@ function MessageBox:AddMessage(contact, message, isOutgoing)
                 self:ShowNotificationPopup()
             end
         end
+    elseif isOutgoing and self.settings.openWindowOnWhisper then
+        -- SendChatMessage(..., "WHISPER") from other addons bypasses ChatFrame_SendTell; still open the
+        -- main window when "open on whisper" is enabled (same focus rules as incoming).
+        local detachedOpen = (self.detachedWindows[contact] and self.detachedWindows[contact]:IsVisible())
+        local mainOpen = (self.frame and self.frame:IsVisible() and self.selectedContact == contact)
+        if not mainOpen and not detachedOpen then
+            local viewingOther = self.frame and self.frame:IsVisible() and self.selectedContact
+                and string.lower(self.selectedContact) ~= string.lower(contact)
+            if not viewingOther then
+                self:SelectContact(contact)
+                self:ShowFrame()
+                return
+            end
+        end
     end
 
     if self.frame and self.frame:IsVisible() then
