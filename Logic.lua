@@ -129,6 +129,10 @@ function MessageBox:AddToWhoQueue(name, callback)
         return
     end
 
+    if MessageBox:IsPlayerOnline(name) == false then
+        return
+    end
+
     local q = MessageBox.whoPlayerQueue[name]
     if not q then
         while MessageBox:WhoQueueCount() >= MessageBox.WHO_QUEUE_MAX do
