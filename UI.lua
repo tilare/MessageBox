@@ -57,13 +57,13 @@ function MessageBox:EnsureRows(scrollChild, rowTable, count)
     end
 end
 
-function MessageBox:CreateHeaderFrame(parent, onClickCallback)
+function MessageBox:CreateHeaderFrame(parent, onClickCallback, plusName, minusName)
     local header = CreateFrame("Button", nil, parent)
     header:SetWidth(120)
     header:SetHeight(20)
     header:SetScript("OnClick", onClickCallback)
 
-    local plusButton = CreateFrame("Button", nil, header)
+    local plusButton = CreateFrame("Button", plusName, header)
     plusButton:SetWidth(16)
     plusButton:SetHeight(16)
     plusButton:SetPoint("LEFT", 0, 0)
@@ -74,7 +74,7 @@ function MessageBox:CreateHeaderFrame(parent, onClickCallback)
     plusButton.text:SetText("+")
     plusButton.text:Hide()
 
-    local minusButton = CreateFrame("Button", nil, header)
+    local minusButton = CreateFrame("Button", minusName, header)
     minusButton:SetWidth(16)
     minusButton:SetHeight(16)
     minusButton:SetPoint("LEFT", 0, 0)
@@ -471,9 +471,9 @@ function MessageBox:CreateFrame()
     MessageBox.clipChild = clipChild
 
     local searchBox = CreateFrame("EditBox", "MessageBoxContactSearch", contactFrame, "InputBoxTemplate")
-    searchBox:SetWidth(120)
+    searchBox:SetWidth(L.CONTACT_WIDTH - 10)
     searchBox:SetHeight(20)
-    searchBox:SetPoint("TOP", contactFrame, "TOP", 0, -6)
+    searchBox:SetPoint("TOPLEFT", contactFrame, "TOPLEFT", 5, -6)
     searchBox:SetAutoFocus(false)
     searchBox:SetFontObject("GameFontHighlightSmall")
     
@@ -509,13 +509,13 @@ function MessageBox:CreateFrame()
     MessageBox.friendsHeader = MessageBox:CreateHeaderFrame(contactFrame, function()
         MessageBox.settings.friendsListCollapsed = not MessageBox.settings.friendsListCollapsed
         MessageBox:UpdateContactList()
-    end)
+    end, "MessageBoxFriendsHeaderPlus", "MessageBoxFriendsHeaderMinus")
     MessageBox.friendsHeader.text:SetText("Friends")
     
     MessageBox.conversationsHeader = MessageBox:CreateHeaderFrame(contactFrame, function()
         MessageBox.settings.conversationsListCollapsed = not MessageBox.settings.conversationsListCollapsed
         MessageBox:UpdateContactList()
-    end)
+    end, "MessageBoxConversationsHeaderPlus", "MessageBoxConversationsHeaderMinus")
     MessageBox.conversationsHeader.text:SetText("Conversations")
 
     local friendsScroll = CreateFrame("ScrollFrame", "MessageBoxFriendsScroll", contactFrame, "FauxScrollFrameTemplate")
@@ -900,10 +900,9 @@ function MessageBox:RelayoutMainFrame()
         self.contactFrame:SetWidth(sidebarWidth)
     end
 
-    -- Search box width
     local searchBox = getglobal("MessageBoxContactSearch")
     if searchBox then
-        searchBox:SetWidth(sidebarWidth - 20)
+        searchBox:SetWidth(sidebarWidth - 10)
     end
 
     -- Clip child width
