@@ -9,7 +9,6 @@ function MessageBox:OnLoad()
     MessageBox.eventFrame:RegisterEvent("PLAYER_ENTERING_WORLD")
     MessageBox.eventFrame:RegisterEvent("FRIENDLIST_UPDATE")
     MessageBox.eventFrame:RegisterEvent("CHAT_MSG_SYSTEM")
-    MessageBox.eventFrame:RegisterEvent("WHO_LIST_UPDATE")
     MessageBox.eventFrame:RegisterEvent("CHAT_MSG_AFK")
     MessageBox.eventFrame:RegisterEvent("CHAT_MSG_DND")
     
@@ -46,7 +45,6 @@ function MessageBox:OnLoad()
         MessageBox.whoElapsed = 0
         MessageBox:ProcessWhoQueue()
 
-        -- Periodic crash save flush
         if MessageBox.hasNampower then
             MessageBox.flushElapsed = (MessageBox.flushElapsed or 0) + 1
             if MessageBox.flushElapsed >= MessageBox.FLUSH_INTERVAL then
@@ -117,6 +115,9 @@ function MessageBox:OnEvent(event)
                 end
                 if info.level then
                     MessageBox.playerCache[name].level = info.level
+                end
+                if info.race then
+                    MessageBox.playerCache[name].race = info.race
                 end
             end
         end
@@ -210,9 +211,6 @@ function MessageBox:OnEvent(event)
             MessageBox:MarkContactListDirty()
         end
         
-    elseif event == "WHO_LIST_UPDATE" then
-        MessageBox:HandleWhoResult()
-    
     elseif event == "CHAT_MSG_AFK" then
         local message = arg1
         local sender = arg2

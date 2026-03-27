@@ -192,8 +192,19 @@ MessageBox.defaultSettings = {
     textColor = {1, 1, 1, 1},
     selectionColor = {0.8, 0.8, 0.8, 0.4},
     gmList = {},
-    classCache = {},  -- Persistent class/level data: { ["Name"] = { class="Mage", classUpper="MAGE", level=60 }, ... }
+    classCache = {},  -- Persistent: class, classUpper, level, race (optional), ...
 }
+
+-- Subheader line from /who cache: "Orc Warrior", or class/race alone if only one is known.
+function MessageBox:RaceClassTagline(cache)
+    if not cache then return nil end
+    if cache.race and cache.race ~= "" and cache.class and cache.class ~= "" then
+        return cache.race .. " " .. cache.class
+    end
+    if cache.class and cache.class ~= "" then return cache.class end
+    if cache.race and cache.race ~= "" then return cache.race end
+    return nil
+end
 
 -- Get message count for a conversation
 function MessageBox:GetCount(c)

@@ -982,13 +982,18 @@ function MessageBox:OpenDetachedWindow(contact)
     if not contact then return end
     
     if self.detachedWindows[contact] then
-        self.detachedWindows[contact]:Show()
+        local w = self.detachedWindows[contact]
+        w:Show()
+        MessageBox:AddToWhoQueue(contact)
+        if w.UpdateHeader then w:UpdateHeader() end
         return
     end
 
     if not self.conversations[contact] then
         self.conversations[contact] = self:NewConversation()
     end
+
+    MessageBox:AddToWhoQueue(contact)
 
     local f = CreateFrame("Frame", "MessageBoxDetached_"..contact, UIParent)
     local L = MessageBox.layout
@@ -1042,6 +1047,12 @@ function MessageBox:OpenDetachedWindow(contact)
     local title = f:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
     title:SetPoint("TOP", 0, -10)
     
+    local raceClassSub = f:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+    raceClassSub:SetPoint("BOTTOMLEFT", title, "BOTTOMRIGHT", 6, 2)
+    raceClassSub:SetJustifyH("LEFT")
+    raceClassSub:SetTextColor(0.67, 0.67, 0.67)
+    f.raceClassSub = raceClassSub
+
     local displayTitle = contact
     local cache = self.playerCache[contact]
     if cache and cache.class then
@@ -1051,7 +1062,37 @@ function MessageBox:OpenDetachedWindow(contact)
         end
     end
     title:SetText(displayTitle)
+    do
+        local tag = MessageBox:RaceClassTagline(cache)
+        if tag and tag ~= "" then
+            raceClassSub:SetText(tag)
+            raceClassSub:Show()
+        else
+            raceClassSub:SetText("")
+            raceClassSub:Hide()
+        end
+    end
     f.title = title
+
+    f.UpdateHeader = function()
+        local c = MessageBox.playerCache[contact]
+        local dt = contact
+        if c and c.class then
+            local color = RAID_CLASS_COLORS[c.classUpper]
+            if color then
+                dt = string.format("|cff%02x%02x%02x%s|r", color.r*255, color.g*255, color.b*255, contact)
+            end
+        end
+        f.title:SetText(dt)
+        local tag = MessageBox:RaceClassTagline(c)
+        if tag and tag ~= "" then
+            f.raceClassSub:SetText(tag)
+            f.raceClassSub:Show()
+        else
+            f.raceClassSub:SetText("")
+            f.raceClassSub:Hide()
+        end
+    end
 
     local closeBtn = CreateFrame("Button", nil, f, "UIPanelCloseButton")
     closeBtn:SetPoint("TOPRIGHT", -5, -5)
