@@ -2,7 +2,7 @@
 -- Theme logic, Apply colors
 
 -- When pfUI's MessageBox skin is active, MessageBox_pfUI.lua styles the contact search, chat search bar,
--- and friends/conversations section expand toggles (SkinCollapseButton).
+-- friends/conversations section expand toggles (SkinCollapseButton), and the settings frame (modal, controls, typography).
 -- If pfUI is loaded but that skin is disabled, ApplyTheme must paint those (same rule as pfUI_config.disabled["skin_MessageBox"]).
 local function MessageBoxTheme_PfUISkinStylesSearchChrome()
     if not IsAddOnLoaded("pfUI") then return false end
@@ -445,8 +445,8 @@ function MessageBox:ApplyTheme()
         end
     end
 
-    -- Settings frame
-    if self.settingsFrame then
+    -- Settings frame (pfUI MessageBox skin handles backdrop, chrome, and controls)
+    if self.settingsFrame and not MessageBoxTheme_PfUISkinStylesSearchChrome() then
         if self.settings.modernTheme then
             self.settingsFrame:SetBackdrop(themeDef.mainBackdrop)
             self.settingsFrame:SetBackdropColor(unpack(mainColor))
@@ -475,6 +475,7 @@ function MessageBox:ApplyTheme()
                     h.text:SetTextColor(1, 0.82, 0, 1)
                     h.line:SetTexture(1, 0.82, 0, 0.3)
                 end
+                if h.line then h.line:Show() end
             end
         end
 

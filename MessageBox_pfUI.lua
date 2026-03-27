@@ -214,6 +214,149 @@ local function skinCheckbox(cb, size)
     end)
 end
 
+local SETTINGS_PFUI_FRAME_HEIGHT = 366
+local SETTINGS_PFUI_COLUMN_Y_NUDGE = -2
+local SETTINGS_PFUI_CHECK_SIZE = 26
+local SETTINGS_SECTION_HEADER_LEFT_INSET = 2
+
+local function settingsFrameTitleFontString(sf)
+    if not sf or not sf.GetName then return end
+    return getglobal(sf:GetName() .. "MBSettingsTitle")
+end
+
+local function skinSettingsFrameLayoutPfUI(sf)
+    if not sf or not canRun() then return end
+    sf:SetHeight(SETTINGS_PFUI_FRAME_HEIGHT)
+
+    if sf.checks then
+        for _, check in pairs(sf.checks) do
+            if not check._pfUIMBCheckAnchor then
+                local pt, rel, rpt, x, y = check:GetPoint(1)
+                if pt and rel then
+                    check._pfUIMBCheckAnchor = { pt, rel, rpt, x or 0, y or 0 }
+                end
+            end
+            local ca = check._pfUIMBCheckAnchor
+            if ca then
+                check:ClearAllPoints()
+                check:SetPoint(ca[1], ca[2], ca[3], ca[4], ca[5] + SETTINGS_PFUI_COLUMN_Y_NUDGE)
+            end
+            check:SetWidth(SETTINGS_PFUI_CHECK_SIZE)
+            check:SetHeight(SETTINGS_PFUI_CHECK_SIZE)
+        end
+    end
+
+    if sf.fontSlider then
+        local sl = sf.fontSlider
+        if not sl._pfUIMBSliderAnchor then
+            local pt, rel, rpt, x, y = sl:GetPoint(1)
+            if pt and rel then
+                sl._pfUIMBSliderAnchor = { pt, rel, rpt, x or 0, y or 0 }
+            end
+        end
+        local sa = sl._pfUIMBSliderAnchor
+        if sa then
+            sl:ClearAllPoints()
+            sl:SetPoint(sa[1], sa[2], sa[3], sa[4], sa[5] + SETTINGS_PFUI_COLUMN_Y_NUDGE)
+        end
+    end
+
+    if sf.sectionHeaders then
+        for _, h in ipairs(sf.sectionHeaders) do
+            if h.line then
+                h.line:Hide()
+            end
+        end
+    end
+end
+
+local function skinSettingsFrameTypography(sf)
+    if not sf or not canRun() then return end
+    local er, eg, eb = pfUI.api.GetStringColor(pfUI_config.appearance.border.color)
+    er, eg, eb = tonumber(er) or 0.25, tonumber(eg) or 0.25, tonumber(eb) or 0.25
+    local br, bg, bb = pfUI.api.GetStringColor(pfUI_config.appearance.border.background)
+    br, bg, bb = tonumber(br) or 0, tonumber(bg) or 0, tonumber(bb) or 0
+    local lum = (br + bg + bb) / 3
+    local titleR, titleG, titleB = 1, 1, 1
+    if lum > 0.55 then
+        titleR, titleG, titleB = 0.15, 0.15, 0.15
+    end
+    local titleFs = settingsFrameTitleFontString(sf)
+    if titleFs then
+        titleFs:SetTextColor(titleR, titleG, titleB, 1)
+    end
+    if sf.sectionHeaders then
+        for _, h in ipairs(sf.sectionHeaders) do
+            if h.text then
+                if not h.text._pfUIMBSectionHeaderBase then
+                    local pt, rel, rpt, x, y = h.text:GetPoint(1)
+                    if pt and rel then
+                        h.text._pfUIMBSectionHeaderBase = { pt, rel, rpt, x or 0, y or 0 }
+                    end
+                end
+                local b = h.text._pfUIMBSectionHeaderBase
+                if b then
+                    h.text:ClearAllPoints()
+                    h.text:SetPoint(b[1], b[2], b[3],
+                        b[4] + SETTINGS_SECTION_HEADER_LEFT_INSET,
+                        b[5] + SETTINGS_PFUI_COLUMN_Y_NUDGE)
+                end
+                h.text:SetTextColor(titleR, titleG, titleB, 1)
+            end
+            if h.line then
+                h.line:SetTexture(er, eg, eb, 0.35)
+            end
+        end
+    end
+    local labelR, labelG, labelB = titleR * 0.92, titleG * 0.92, titleB * 0.92
+    if sf.checks then
+        for _, check in pairs(sf.checks) do
+            if check.label then
+                check.label:SetTextColor(labelR, labelG, labelB, 1)
+            end
+        end
+    end
+    local slider = sf.fontSlider
+    if slider then
+        local name = slider:GetName()
+        local textLabel = name and getglobal(name .. "Text")
+        local low = name and getglobal(name .. "Low")
+        local high = name and getglobal(name .. "High")
+        if textLabel then textLabel:SetTextColor(labelR, labelG, labelB, 1) end
+        local mutedR = titleR * 0.55 + er * 0.45
+        local mutedG = titleG * 0.55 + eg * 0.45
+        local mutedB = titleB * 0.55 + eb * 0.45
+        if low then low:SetTextColor(mutedR, mutedG, mutedB, 1) end
+        if high then high:SetTextColor(mutedR, mutedG, mutedB, 1) end
+    end
+end
+
+local function skinSettingsFrame(sf)
+    if not sf or not canRun() then return end
+    skinSettingsFrameLayoutPfUI(sf)
+    skinModalFrame(sf, MODAL_ALPHA, 12)
+    if sf.closeBtn then skinClose(sf.closeBtn, sf.backdrop or sf) end
+    if sf.checks then
+        for _, check in pairs(sf.checks) do
+            skinCheckbox(check, 20)
+        end
+    end
+    if sf.fontSlider then
+        local sl = sf.fontSlider
+        -- pfUI SkinSlider nudges each FontString by fixed deltas from *current* GetPoint() values without
+        -- ClearAllPoints; calling it on every ApplyTheme (e.g. Classic Theme toggle) stacks offsets.
+        if not sl._pfUIMBSettingsSliderSkinned then
+            pcall(function()
+                pfUI.api.SkinSlider(sl)
+            end)
+            sl._pfUIMBSettingsSliderSkinned = true
+        elseif sl.backdrop then
+            syncBackdropColors(sl, nil)
+        end
+    end
+    skinSettingsFrameTypography(sf)
+end
+
 local function skinChatSearchBarFrame()
     if not MessageBox.searchBarFrame or not canRun() then return end
     local bar = MessageBox.searchBarFrame
@@ -367,20 +510,7 @@ function MessageBoxPfUI_ApplyAfterTheme()
     end
 
     if MessageBox.settingsFrame then
-        local sf = MessageBox.settingsFrame
-        skinModalFrame(sf, MODAL_ALPHA, 12)
-        if sf.closeBtn then skinClose(sf.closeBtn, sf.backdrop or sf) end
-        if sf.checks then
-            for _, check in pairs(sf.checks) do
-                skinCheckbox(check, 18)
-            end
-        end
-        if sf.fontSlider and not sf.fontSlider._pfUIMBSkinSlider then
-            pcall(function()
-                pfUI.api.SkinSlider(sf.fontSlider)
-                sf.fontSlider._pfUIMBSkinSlider = true
-            end)
-        end
+        skinSettingsFrame(MessageBox.settingsFrame)
     end
 
     if MessageBox.themeFrame then
@@ -453,6 +583,12 @@ local function installHooks()
     local origCopy = MessageBox.ShowCopyPopup
     MessageBox.ShowCopyPopup = function(self, url)
         origCopy(self, url)
+        MessageBoxPfUI_ApplyAfterTheme()
+    end
+
+    local origSettings = MessageBox.ShowSettingsFrame
+    MessageBox.ShowSettingsFrame = function(self)
+        origSettings(self)
         MessageBoxPfUI_ApplyAfterTheme()
     end
 end

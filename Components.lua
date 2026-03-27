@@ -206,7 +206,7 @@ function MessageBox:ShowSettingsFrame()
             insets = { left = 11, right = 12, top = 12, bottom = 11 }
         })
         
-        local title = f:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+        local title = f:CreateFontString("MBSettingsTitle", "OVERLAY", "GameFontNormal")
         title:SetPoint("TOP", 0, -15)
         title:SetText("Settings")
         
