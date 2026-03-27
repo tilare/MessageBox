@@ -167,14 +167,8 @@ function MessageBox:CreateChatHeader(parent)
     nameText:SetJustifyH("LEFT")
     header.nameText = nameText
 
-    local raceClassText = header:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-    raceClassText:SetPoint("BOTTOMLEFT", nameText, "BOTTOMRIGHT", 4, 1)
-    raceClassText:SetJustifyH("LEFT")
-    raceClassText:SetTextColor(0.67, 0.67, 0.67)
-    header.raceClassText = raceClassText
-
     local guildText = header:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-    guildText:SetPoint("BOTTOMLEFT", nameText, "BOTTOMRIGHT", 6, 0)
+    guildText:SetPoint("LEFT", nameText, "RIGHT", 6, 0)
     guildText:SetJustifyH("LEFT")
     guildText:SetTextColor(0.5, 0.5, 0.5)
     header.guildText = guildText
@@ -284,10 +278,6 @@ function MessageBox:UpdateChatHeader()
         self.chatHeader.searchBtn:Hide()
         self.chatHeader.guildText:Hide()
         self.chatHeader.metaTopText:Hide()
-        if self.chatHeader.raceClassText then
-            self.chatHeader.raceClassText:SetText("")
-            self.chatHeader.raceClassText:Hide()
-        end
         return
     end
 
@@ -332,12 +322,6 @@ function MessageBox:UpdateChatHeader()
         -- GM: special display — skip level/guild, show GM badge
         displayTitle = "|cff00ccffGM " .. name .. "|r"
         self.chatHeader.nameText:SetText(displayTitle)
-        if self.chatHeader.raceClassText then
-            self.chatHeader.raceClassText:SetText("")
-            self.chatHeader.raceClassText:Hide()
-        end
-        self.chatHeader.guildText:ClearAllPoints()
-        self.chatHeader.guildText:SetPoint("BOTTOMLEFT", self.chatHeader.nameText, "BOTTOMRIGHT", 6, 0)
         
         self.chatHeader.guildText:SetText("|cff00ccff<Game Master>|r")
         self.chatHeader.guildText:Show()
@@ -353,22 +337,8 @@ function MessageBox:UpdateChatHeader()
                 displayTitle = string.format("|cff%02x%02x%02x%s|r", color.r*255, color.g*255, color.b*255, name)
             end
         end
+        
         self.chatHeader.nameText:SetText(displayTitle)
-
-        local rcTag = MessageBox:RaceClassTagline(cache)
-        if self.chatHeader.raceClassText then
-            if rcTag and rcTag ~= "" then
-                self.chatHeader.raceClassText:SetText(rcTag)
-                self.chatHeader.raceClassText:Show()
-                self.chatHeader.guildText:ClearAllPoints()
-                self.chatHeader.guildText:SetPoint("BOTTOMLEFT", self.chatHeader.raceClassText, "BOTTOMRIGHT", 6, 0)
-            else
-                self.chatHeader.raceClassText:SetText("")
-                self.chatHeader.raceClassText:Hide()
-                self.chatHeader.guildText:ClearAllPoints()
-                self.chatHeader.guildText:SetPoint("BOTTOMLEFT", self.chatHeader.nameText, "BOTTOMRIGHT", 6, 0)
-            end
-        end
 
         -- AFK/DND status display
         if cache and cache.status and cache.status ~= "" then
@@ -1330,9 +1300,6 @@ function MessageBox:SelectContact(contact)
     if MessageBox.whisperInput then
         MessageBox:ScheduleWhisperInputFocus()
     end
-
-    -- Background /who for class/guild when focusing this contact (e.g. chat name click → whisper).
-    MessageBox:AddToWhoQueue(contact)
 end
 
 function MessageBox:UpdateChatHistory(unreadCount, resetToBottom)
