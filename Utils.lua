@@ -50,6 +50,32 @@ function MessageBox:GetPanelBackdropInnerWidth(frame)
     return frame:GetWidth() - left - right
 end
 
+-- Inset for contact row selection highlight when the faux scroll list shows its vertical scrollbar.
+-- scrollbarWidth + 2 * (contactFrame right − scrollbar right), in UIParent space.
+function MessageBox:GetContactListScrollHighlightInset(scrollFrame, listSize, displayRowCount)
+    if not scrollFrame or not listSize or not displayRowCount or listSize <= displayRowCount then
+        return 0
+    end
+    local sb = getglobal(scrollFrame:GetName() .. "ScrollBar")
+    if not sb or not sb:IsShown() then
+        return 0
+    end
+    local w = sb:GetWidth()
+    if not w or w < 1 then
+        return 0
+    end
+    local rightOffset = 0
+    local parent = MessageBox.contactFrame
+    if parent then
+        local pr = parent:GetRight()
+        local sr = sb:GetRight()
+        if pr and sr and pr > sr then
+            rightOffset = pr - sr
+        end
+    end
+    return w + 2 * rightOffset
+end
+
 -- Friends/conversations scroll TOPLEFT is 5px from contactFrame; align row left to backdrop inner left.
 function MessageBox:GetContactListRowLeftOffsetFromScroll()
     local themeDef = self.settings.modernTheme and self.themes.modern or self.themes.classic

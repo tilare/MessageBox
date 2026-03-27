@@ -1060,13 +1060,22 @@ function MessageBox:MarkContactListDirty()
     MessageBox.contactListDirty = true
 end
 
-function MessageBox:SetContactRowSelectionHighlight(row, contactName)
+function MessageBox:SetContactRowSelectionHighlight(row, contactName, highlightRightInset)
     if not row or not row.selectionBg then return end
-    if MessageBox.selectedContact and contactName and MessageBox.selectedContact == contactName then
-        MessageBox:SkinContactRowSelectionHighlightTexture(row.selectionBg)
-        row.selectionBg:Show()
+    local bg = row.selectionBg
+    highlightRightInset = highlightRightInset or 0
+    bg:ClearAllPoints()
+    if highlightRightInset > 0 then
+        bg:SetPoint("TOPLEFT", row, "TOPLEFT", 0, 0)
+        bg:SetPoint("BOTTOMRIGHT", row, "BOTTOMRIGHT", -highlightRightInset, 0)
     else
-        row.selectionBg:Hide()
+        bg:SetAllPoints(row)
+    end
+    if MessageBox.selectedContact and contactName and MessageBox.selectedContact == contactName then
+        MessageBox:SkinContactRowSelectionHighlightTexture(bg)
+        bg:Show()
+    else
+        bg:Hide()
     end
 end
 
@@ -1167,7 +1176,8 @@ function MessageBox:UpdateScrollViews()
         
         MessageBox:EnsureRows(MessageBox.clipChild or MessageBox.contactFrame, MessageBox.friendRows, displayRows)
         FauxScrollFrame_Update(MessageBoxFriendsScroll, listSize, scrollRows, ROW_HEIGHT)
-        
+        local friendsHighlightInset = MessageBox:GetContactListScrollHighlightInset(MessageBox.friendsScroll, listSize, scrollRows)
+
         local offset = FauxScrollFrame_GetOffset(MessageBoxFriendsScroll)
         for i = 1, table.getn(MessageBox.friendRows) do
             local row = MessageBox.friendRows[i]
@@ -1208,7 +1218,7 @@ function MessageBox:UpdateScrollViews()
                     row:SetPoint("TOPLEFT", MessageBox.friendsScroll, "TOPLEFT", contactRowScrollX, -((i-1)*ROW_HEIGHT))
                     row:SetWidth(contactRowWidth)
                     row.text:SetWidth(row:GetWidth() - 10)
-                    MessageBox:SetContactRowSelectionHighlight(row, data.name)
+                    MessageBox:SetContactRowSelectionHighlight(row, data.name, friendsHighlightInset)
                     row:Show()
                 else
                     row:Hide()
@@ -1228,7 +1238,8 @@ function MessageBox:UpdateScrollViews()
         
         MessageBox:EnsureRows(MessageBox.clipChild or MessageBox.contactFrame, MessageBox.conversationRows, displayRows)
         FauxScrollFrame_Update(MessageBoxConversationsScroll, listSize, scrollRows, ROW_HEIGHT)
-        
+        local convosHighlightInset = MessageBox:GetContactListScrollHighlightInset(MessageBox.conversationsScroll, listSize, scrollRows)
+
         local offset = FauxScrollFrame_GetOffset(MessageBoxConversationsScroll)
         for i = 1, table.getn(MessageBox.conversationRows) do
             local row = MessageBox.conversationRows[i]
@@ -1277,7 +1288,7 @@ function MessageBox:UpdateScrollViews()
                     row:SetWidth(contactRowWidth)
                     local textRight = data.pinned and 22 or 10
                     row.text:SetWidth(row:GetWidth() - textRight)
-                    MessageBox:SetContactRowSelectionHighlight(row, data.name)
+                    MessageBox:SetContactRowSelectionHighlight(row, data.name, convosHighlightInset)
                     row:Show()
                 else
                     row:Hide()
