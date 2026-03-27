@@ -36,6 +36,32 @@ function MessageBox:HandleLink(text)
     return text
 end
 
+-- Inner width inside panel backdrop borders: 9-slice insets when set, else edgeSize for flat themes.
+function MessageBox:GetPanelBackdropInnerWidth(frame)
+    local themeDef = self.settings.modernTheme and self.themes.modern or self.themes.classic
+    local bd = themeDef.panelBackdrop
+    local ins = (bd and bd.insets) or {left = 0, right = 0}
+    local left = ins.left or 0
+    local right = ins.right or 0
+    if left == 0 and right == 0 and bd and bd.edgeFile and bd.edgeSize and bd.edgeSize > 0 then
+        local e = bd.edgeSize
+        return frame:GetWidth() - e - e
+    end
+    return frame:GetWidth() - left - right
+end
+
+-- Friends/conversations scroll TOPLEFT is 5px from contactFrame; align row left to backdrop inner left.
+function MessageBox:GetContactListRowLeftOffsetFromScroll()
+    local themeDef = self.settings.modernTheme and self.themes.modern or self.themes.classic
+    local bd = themeDef.panelBackdrop
+    local ins = (bd and bd.insets) or {left = 0}
+    local insetLeft = ins.left or 0
+    if insetLeft == 0 and bd and bd.edgeFile and bd.edgeSize and bd.edgeSize > 0 then
+        insetLeft = bd.edgeSize
+    end
+    return insetLeft - 5
+end
+
 function MessageBox:SkinScrollbar(frame)
     if not frame then return end
     
