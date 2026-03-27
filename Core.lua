@@ -26,6 +26,9 @@ MessageBox.chatSearchTerm = ""
 MessageBox.chatSearchResults = {}
 MessageBox.chatSearchCurrentIndex = 0
 
+-- Defer whisper EditBox focus so keybinds/clicks that open the frame don't insert into input
+MessageBox.pendingWhisperFocusFrames = nil
+
 -- Nampower crash-save state
 MessageBox.hasNampower = false
 MessageBox.FLUSH_INTERVAL = 60      -- seconds between periodic auto-saves
@@ -63,6 +66,8 @@ MessageBox.layout = {
 -- Contact list dirty flag
 MessageBox.contactListDirty = false
 MessageBox.CONTACT_LIST_THROTTLE = 0.1
+-- Set when CHAT_MSG_WHISPER is handled so ChatFrame_SendTell can skip switching contacts.
+MessageBox.suppressSendTellForSwitch = nil
 
 -- Texture & font paths
 local A = "Interface\\AddOns\\MessageBox\\img\\"
@@ -167,6 +172,7 @@ MessageBox.defaultSettings = {
     conversationsListCollapsed = false,
     unreadCounts = {},
     popupNotificationsEnabled = true,
+    openWindowOnWhisper = false,
     notificationPopupPosition = { point = "CENTER", relativePoint = "CENTER", x = 0, y = -200 },
     modernTheme = true,
     hideOffline = false,

@@ -208,6 +208,13 @@ function MessageBox:SetupHooks()
         self.original_ChatFrame_SendTell = ChatFrame_SendTell
         ChatFrame_SendTell = function(name, chatFrame)
             if MessageBox.settings.interceptWhispers then
+                -- Blizzard calls SendTell while handling an incoming whisper; suppress when we
+                -- already marked this sender (user is viewing another conversation in the main frame).
+                local suppress = MessageBox.suppressSendTellForSwitch
+                if suppress and name and string.lower(suppress) == string.lower(name) then
+                    MessageBox.suppressSendTellForSwitch = nil
+                    return
+                end
                 MessageBox:SelectContact(name)
                 MessageBox:ShowFrame()
                 return
@@ -219,6 +226,16 @@ function MessageBox:SetupHooks()
     if not self.original_ChatFrame_OnEvent then
         self.original_ChatFrame_OnEvent = ChatFrame_OnEvent
         ChatFrame_OnEvent = function(event)
+            -- Mark the next SendTell for this sender so we can ignore it if the main frame is
+            -- open on another conversation (AddMessage may also skip SelectContact in that case).
+            if event == "CHAT_MSG_WHISPER" and MessageBox.settings.interceptWhispers then
+                local sender = arg2
+                local sel = MessageBox.selectedContact
+                if sender and sel and MessageBox.frame and MessageBox.frame:IsVisible()
+                    and string.lower(sel) ~= string.lower(sender) then
+                    MessageBox.suppressSendTellForSwitch = sender
+                end
+            end
             if MessageBox.settings.suppressWhispers then
                 if event == "CHAT_MSG_WHISPER" or event == "CHAT_MSG_WHISPER_INFORM" then
                     return
@@ -298,8 +315,36 @@ function MessageBox:AddMessage(contact, message, isOutgoing)
             self.unreadCounts[contact] = self.unreadCounts[contact] + 1
             self:UpdateMinimapBadge()
             
-            if self.settings.popupNotificationsEnabled and (not self.frame or not self.frame:IsVisible()) then
+            if self.settings.openWindowOnWhisper then
+                -- Only jump to the sender when we are not already focused on another conversation
+                -- in an open main window (otherwise use unread counts / list like when this is off).
+                local viewingOther = self.frame and self.frame:IsVisible() and self.selectedContact
+                    and string.lower(self.selectedContact) ~= string.lower(contact)
+                if not viewingOther then
+                    self:SelectContact(contact)
+                    self:ShowFrame()
+                    if self.settings.notificationSound then
+                        PlaySoundFile("Interface\\AddOns\\MessageBox\\sound\\notification.wav")
+                    end
+                    -- SelectContact already refreshed chatHistory; skip incremental AddMessage below
+                    return
+                end
+            elseif self.settings.popupNotificationsEnabled and (not self.frame or not self.frame:IsVisible()) then
                 self:ShowNotificationPopup()
+            end
+        end
+    elseif isOutgoing and self.settings.openWindowOnWhisper then
+        -- SendChatMessage(..., "WHISPER") from other addons bypasses ChatFrame_SendTell; still open the
+        -- main window when "open on whisper" is enabled (same focus rules as incoming).
+        local detachedOpen = (self.detachedWindows[contact] and self.detachedWindows[contact]:IsVisible())
+        local mainOpen = (self.frame and self.frame:IsVisible() and self.selectedContact == contact)
+        if not mainOpen and not detachedOpen then
+            local viewingOther = self.frame and self.frame:IsVisible() and self.selectedContact
+                and string.lower(self.selectedContact) ~= string.lower(contact)
+            if not viewingOther then
+                self:SelectContact(contact)
+                self:ShowFrame()
+                return
             end
         end
     end
@@ -318,6 +363,13 @@ function MessageBox:AddMessage(contact, message, isOutgoing)
             
             self.chatHistory:AddMessage(formattedMessage)
             self.chatHistory:ScrollToBottom()
+            if self.chatScrollBar then
+                self.chatScrollBar.isUpdating = true
+                self.chatScrollBar:SetMinMaxValues(1, c.count)
+                self.chatScrollBar:SetValue(c.count)
+                self.chatScrollBar.isUpdating = false
+                self.chatScrollBar:Show()
+            end
             self:UpdateChatHeader()
         end
     end
@@ -361,6 +413,7 @@ function MessageBox:AddSystemMessage(contact, message, isTransient)
             self.chatScrollBar:SetMinMaxValues(1, c.count)
             self.chatScrollBar:SetValue(c.count)
             self.chatScrollBar.isUpdating = false
+            self.chatScrollBar:Show()
         end
     end
 end
