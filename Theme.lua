@@ -103,6 +103,26 @@ function MessageBox:SkinCheckbox(check, isModern, textColor, inputColor, panelBo
     end
 end
 
+-- Contact list selected row: modern uses UI-Listbox-Highlight2 + selectionColor (same texture family as checkbox hover);
+-- classic uses UI-QuestTitleHighlight + ADD like default WoW lists.
+function MessageBox:SkinContactRowSelectionHighlightTexture(tex)
+    if not tex then return end
+    if MessageBox.settings.modernTheme then
+        tex:SetTexture(MessageBox.textures.listHighlight)
+        tex:SetBlendMode("BLEND")
+        if tex.SetHorizTile then tex:SetHorizTile(false) end
+        if tex.SetVertTile then tex:SetVertTile(false) end
+        local sc = MessageBox.settings.selectionColor or MessageBox.defaultSettings.selectionColor
+        tex:SetVertexColor(unpack(sc))
+    else
+        tex:SetTexture(MessageBox.textures.questHighlight)
+        tex:SetBlendMode("ADD")
+        tex:SetVertexColor(1, 1, 1, 1)
+        if tex.SetHorizTile then tex:SetHorizTile(true) end
+        if tex.SetVertTile then tex:SetVertTile(false) end
+    end
+end
+
 function MessageBox:UpdateThemeFrameSwatches()
     if self.themeFrame and self.themeFrame.swatches then
         for _, swatch in ipairs(self.themeFrame.swatches) do

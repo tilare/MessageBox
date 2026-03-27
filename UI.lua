@@ -2,23 +2,32 @@
 -- UI Construction, Contact rows
 
 function MessageBox:CreateContactRow(parent)
+    local L = MessageBox.layout
+    local rh = L.ROW_HEIGHT
     local frame = CreateFrame("Button", nil, parent)
     frame:SetWidth(105)
-    frame:SetHeight(16)
+    frame:SetHeight(rh)
     frame:EnableMouse(true)
-    
+
+    local selectionBg = frame:CreateTexture(nil, "BACKGROUND")
+    frame.selectionBg = selectionBg
+    MessageBox:SkinContactRowSelectionHighlightTexture(selectionBg)
+    selectionBg:SetAllPoints()
+    selectionBg:Hide()
+
     local statusIcon = frame:CreateFontString(nil, "ARTWORK")
-    statusIcon:SetFont(MessageBox.fonts.openSans, 16)
-    statusIcon:SetPoint("LEFT", frame, "LEFT", -5, -2)
+    statusIcon:SetFont(MessageBox.fonts.openSans, 12)
+    statusIcon:SetPoint("LEFT", frame, "LEFT", 4, 0)
     frame.statusIcon = statusIcon
     
     local pinIcon = frame:CreateTexture(nil, "OVERLAY")
     pinIcon:SetWidth(10)
     pinIcon:SetHeight(10)
+    pinIcon:SetPoint("TOP", frame, "TOP", 0, -(rh - 10) / 2)
     pinIcon:SetPoint("RIGHT", frame, "RIGHT", -2, 0)
 
     local text = frame:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-    text:SetPoint("LEFT", statusIcon, "RIGHT", 3, 1)
+    text:SetPoint("LEFT", statusIcon, "RIGHT", 3, 0)
     text:SetJustifyH("LEFT")
     frame.text = text
     pinIcon:SetTexture(MessageBox.textures.pin)
@@ -520,13 +529,13 @@ function MessageBox:CreateFrame()
 
     local friendsScroll = CreateFrame("ScrollFrame", "MessageBoxFriendsScroll", contactFrame, "FauxScrollFrameTemplate")
     friendsScroll:SetScript("OnVerticalScroll", function() 
-        FauxScrollFrame_OnVerticalScroll(1, function() MessageBox:UpdateScrollViews() end) 
+        FauxScrollFrame_OnVerticalScroll(MessageBox.layout.ROW_HEIGHT, function() MessageBox:UpdateScrollViews() end) 
     end)
     MessageBox.friendsScroll = friendsScroll
     
     local convosScroll = CreateFrame("ScrollFrame", "MessageBoxConversationsScroll", contactFrame, "FauxScrollFrameTemplate")
     convosScroll:SetScript("OnVerticalScroll", function() 
-        FauxScrollFrame_OnVerticalScroll(1, function() MessageBox:UpdateScrollViews() end) 
+        FauxScrollFrame_OnVerticalScroll(MessageBox.layout.ROW_HEIGHT, function() MessageBox:UpdateScrollViews() end) 
     end)
     MessageBox.conversationsScroll = convosScroll
 
@@ -1044,6 +1053,16 @@ function MessageBox:MarkContactListDirty()
     MessageBox.contactListDirty = true
 end
 
+function MessageBox:SetContactRowSelectionHighlight(row, contactName)
+    if not row or not row.selectionBg then return end
+    if MessageBox.selectedContact and contactName and MessageBox.selectedContact == contactName then
+        MessageBox:SkinContactRowSelectionHighlightTexture(row.selectionBg)
+        row.selectionBg:Show()
+    else
+        row.selectionBg:Hide()
+    end
+end
+
 function MessageBox:UpdateScrollViews()
     if not MessageBox.contactFrame then return end
 
@@ -1056,7 +1075,8 @@ function MessageBox:UpdateScrollViews()
     local HEADER_HEIGHT = L.HEADER_HEIGHT
     local BOTTOM_PADDING = L.BOTTOM_PADDING
     local MIDDLE_PADDING = L.MIDDLE_PADDING
-    
+    local contactRowWidth = MessageBox:GetPanelBackdropInnerWidth(MessageBox.contactFrame)
+    local contactRowScrollX = MessageBox:GetContactListRowLeftOffsetFromScroll()
     local containerHeight = MessageBox.frame:GetHeight() - 66
     local availableHeight = containerHeight - SEARCH_AREA_HEIGHT - (HEADER_HEIGHT * 2) - BOTTOM_PADDING - MIDDLE_PADDING
     
@@ -1088,8 +1108,8 @@ function MessageBox:UpdateScrollViews()
         convosHeight = availableHeight
     end
     
-    if friendsHeight < 16 then friendsHeight = 16 end
-    if convosHeight < 16 then convosHeight = 16 end
+    if friendsHeight < ROW_HEIGHT then friendsHeight = ROW_HEIGHT end
+    if convosHeight < ROW_HEIGHT then convosHeight = ROW_HEIGHT end
 
     if friendsCollapsed then
         MessageBox.friendsHeader.plusButton:Show()
@@ -1134,12 +1154,12 @@ function MessageBox:UpdateScrollViews()
 
     if not friendsCollapsed then
         local listSize = table.getn(MessageBox.visibleFriends)
-        local displayRows = math.ceil(friendsHeight / 16)
-        local scrollRows = math.floor(friendsHeight / 16)
+        local displayRows = math.ceil(friendsHeight / ROW_HEIGHT)
+        local scrollRows = math.floor(friendsHeight / ROW_HEIGHT)
         if scrollRows < 1 then scrollRows = 1 end
         
         MessageBox:EnsureRows(MessageBox.clipChild or MessageBox.contactFrame, MessageBox.friendRows, displayRows)
-        FauxScrollFrame_Update(MessageBoxFriendsScroll, listSize, scrollRows, 1)
+        FauxScrollFrame_Update(MessageBoxFriendsScroll, listSize, scrollRows, ROW_HEIGHT)
         
         local offset = FauxScrollFrame_GetOffset(MessageBoxFriendsScroll)
         for i = 1, table.getn(MessageBox.friendRows) do
@@ -1177,9 +1197,11 @@ function MessageBox:UpdateScrollViews()
 
                     row.contactName = data.name
 
-                    row:SetPoint("TOPLEFT", MessageBox.friendsScroll, "TOPLEFT", 8, -((i-1)*16))
-                    row:SetWidth(MessageBox.friendsScroll:GetWidth())
+                    row:SetHeight(ROW_HEIGHT)
+                    row:SetPoint("TOPLEFT", MessageBox.friendsScroll, "TOPLEFT", contactRowScrollX, -((i-1)*ROW_HEIGHT))
+                    row:SetWidth(contactRowWidth)
                     row.text:SetWidth(row:GetWidth() - 10)
+                    MessageBox:SetContactRowSelectionHighlight(row, data.name)
                     row:Show()
                 else
                     row:Hide()
@@ -1193,12 +1215,12 @@ function MessageBox:UpdateScrollViews()
     if not conversationsCollapsed then
         local listSize = table.getn(MessageBox.visibleConversations)
         
-        local displayRows = math.ceil(convosHeight / 16)
-        local scrollRows = math.floor(convosHeight / 16)
+        local displayRows = math.ceil(convosHeight / ROW_HEIGHT)
+        local scrollRows = math.floor(convosHeight / ROW_HEIGHT)
         if scrollRows < 1 then scrollRows = 1 end
         
         MessageBox:EnsureRows(MessageBox.clipChild or MessageBox.contactFrame, MessageBox.conversationRows, displayRows)
-        FauxScrollFrame_Update(MessageBoxConversationsScroll, listSize, scrollRows, 1)
+        FauxScrollFrame_Update(MessageBoxConversationsScroll, listSize, scrollRows, ROW_HEIGHT)
         
         local offset = FauxScrollFrame_GetOffset(MessageBoxConversationsScroll)
         for i = 1, table.getn(MessageBox.conversationRows) do
@@ -1243,10 +1265,12 @@ function MessageBox:UpdateScrollViews()
 
                     row.contactName = data.name
 
-                    row:SetPoint("TOPLEFT", MessageBox.conversationsScroll, "TOPLEFT", 8, -((i-1)*16))
-                    row:SetWidth(MessageBox.conversationsScroll:GetWidth())
+                    row:SetHeight(ROW_HEIGHT)
+                    row:SetPoint("TOPLEFT", MessageBox.conversationsScroll, "TOPLEFT", contactRowScrollX, -((i-1)*ROW_HEIGHT))
+                    row:SetWidth(contactRowWidth)
                     local textRight = data.pinned and 22 or 10
                     row.text:SetWidth(row:GetWidth() - textRight)
+                    MessageBox:SetContactRowSelectionHighlight(row, data.name)
                     row:Show()
                 else
                     row:Hide()
