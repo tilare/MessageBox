@@ -2,32 +2,23 @@
 -- UI Construction, Contact rows
 
 function MessageBox:CreateContactRow(parent)
-    local L = MessageBox.layout
-    local rh = L.ROW_HEIGHT
     local frame = CreateFrame("Button", nil, parent)
     frame:SetWidth(105)
-    frame:SetHeight(rh)
+    frame:SetHeight(16)
     frame:EnableMouse(true)
-
-    local selectionBg = frame:CreateTexture(nil, "BACKGROUND")
-    frame.selectionBg = selectionBg
-    MessageBox:SkinContactRowSelectionHighlightTexture(selectionBg)
-    selectionBg:SetAllPoints()
-    selectionBg:Hide()
-
+    
     local statusIcon = frame:CreateFontString(nil, "ARTWORK")
-    statusIcon:SetFont(MessageBox.fonts.openSans, 12)
-    statusIcon:SetPoint("LEFT", frame, "LEFT", 4, 0)
+    statusIcon:SetFont(MessageBox.fonts.openSans, 16)
+    statusIcon:SetPoint("LEFT", frame, "LEFT", -5, -2)
     frame.statusIcon = statusIcon
     
     local pinIcon = frame:CreateTexture(nil, "OVERLAY")
     pinIcon:SetWidth(10)
     pinIcon:SetHeight(10)
-    pinIcon:SetPoint("TOP", frame, "TOP", 0, -(rh - 10) / 2)
     pinIcon:SetPoint("RIGHT", frame, "RIGHT", -2, 0)
 
     local text = frame:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-    text:SetPoint("LEFT", statusIcon, "RIGHT", 3, 0)
+    text:SetPoint("LEFT", statusIcon, "RIGHT", 3, 1)
     text:SetJustifyH("LEFT")
     frame.text = text
     pinIcon:SetTexture(MessageBox.textures.pin)
@@ -66,13 +57,13 @@ function MessageBox:EnsureRows(scrollChild, rowTable, count)
     end
 end
 
-function MessageBox:CreateHeaderFrame(parent, onClickCallback)
+function MessageBox:CreateHeaderFrame(parent, onClickCallback, plusName, minusName)
     local header = CreateFrame("Button", nil, parent)
     header:SetWidth(120)
     header:SetHeight(20)
     header:SetScript("OnClick", onClickCallback)
 
-    local plusButton = CreateFrame("Button", nil, header)
+    local plusButton = CreateFrame("Button", plusName, header)
     plusButton:SetWidth(16)
     plusButton:SetHeight(16)
     plusButton:SetPoint("LEFT", 0, 0)
@@ -83,7 +74,7 @@ function MessageBox:CreateHeaderFrame(parent, onClickCallback)
     plusButton.text:SetText("+")
     plusButton.text:Hide()
 
-    local minusButton = CreateFrame("Button", nil, header)
+    local minusButton = CreateFrame("Button", minusName, header)
     minusButton:SetWidth(16)
     minusButton:SetHeight(16)
     minusButton:SetPoint("LEFT", 0, 0)
@@ -176,8 +167,14 @@ function MessageBox:CreateChatHeader(parent)
     nameText:SetJustifyH("LEFT")
     header.nameText = nameText
 
+    local raceClassText = header:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+    raceClassText:SetPoint("BOTTOMLEFT", nameText, "BOTTOMRIGHT", 4, 1)
+    raceClassText:SetJustifyH("LEFT")
+    raceClassText:SetTextColor(0.67, 0.67, 0.67)
+    header.raceClassText = raceClassText
+
     local guildText = header:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-    guildText:SetPoint("LEFT", nameText, "RIGHT", 6, 0)
+    guildText:SetPoint("BOTTOMLEFT", nameText, "BOTTOMRIGHT", 6, 0)
     guildText:SetJustifyH("LEFT")
     guildText:SetTextColor(0.5, 0.5, 0.5)
     header.guildText = guildText
@@ -287,6 +284,10 @@ function MessageBox:UpdateChatHeader()
         self.chatHeader.searchBtn:Hide()
         self.chatHeader.guildText:Hide()
         self.chatHeader.metaTopText:Hide()
+        if self.chatHeader.raceClassText then
+            self.chatHeader.raceClassText:SetText("")
+            self.chatHeader.raceClassText:Hide()
+        end
         return
     end
 
@@ -331,6 +332,12 @@ function MessageBox:UpdateChatHeader()
         -- GM: special display — skip level/guild, show GM badge
         displayTitle = "|cff00ccffGM " .. name .. "|r"
         self.chatHeader.nameText:SetText(displayTitle)
+        if self.chatHeader.raceClassText then
+            self.chatHeader.raceClassText:SetText("")
+            self.chatHeader.raceClassText:Hide()
+        end
+        self.chatHeader.guildText:ClearAllPoints()
+        self.chatHeader.guildText:SetPoint("BOTTOMLEFT", self.chatHeader.nameText, "BOTTOMRIGHT", 6, 0)
         
         self.chatHeader.guildText:SetText("|cff00ccff<Game Master>|r")
         self.chatHeader.guildText:Show()
@@ -346,8 +353,22 @@ function MessageBox:UpdateChatHeader()
                 displayTitle = string.format("|cff%02x%02x%02x%s|r", color.r*255, color.g*255, color.b*255, name)
             end
         end
-        
         self.chatHeader.nameText:SetText(displayTitle)
+
+        local rcTag = MessageBox:RaceClassTagline(cache)
+        if self.chatHeader.raceClassText then
+            if rcTag and rcTag ~= "" then
+                self.chatHeader.raceClassText:SetText(rcTag)
+                self.chatHeader.raceClassText:Show()
+                self.chatHeader.guildText:ClearAllPoints()
+                self.chatHeader.guildText:SetPoint("BOTTOMLEFT", self.chatHeader.raceClassText, "BOTTOMRIGHT", 6, 0)
+            else
+                self.chatHeader.raceClassText:SetText("")
+                self.chatHeader.raceClassText:Hide()
+                self.chatHeader.guildText:ClearAllPoints()
+                self.chatHeader.guildText:SetPoint("BOTTOMLEFT", self.chatHeader.nameText, "BOTTOMRIGHT", 6, 0)
+            end
+        end
 
         -- AFK/DND status display
         if cache and cache.status and cache.status ~= "" then
@@ -480,9 +501,9 @@ function MessageBox:CreateFrame()
     MessageBox.clipChild = clipChild
 
     local searchBox = CreateFrame("EditBox", "MessageBoxContactSearch", contactFrame, "InputBoxTemplate")
-    searchBox:SetWidth(120)
+    searchBox:SetWidth(L.CONTACT_WIDTH - 10)
     searchBox:SetHeight(20)
-    searchBox:SetPoint("TOP", contactFrame, "TOP", 0, -6)
+    searchBox:SetPoint("TOPLEFT", contactFrame, "TOPLEFT", 5, -6)
     searchBox:SetAutoFocus(false)
     searchBox:SetFontObject("GameFontHighlightSmall")
     
@@ -518,24 +539,24 @@ function MessageBox:CreateFrame()
     MessageBox.friendsHeader = MessageBox:CreateHeaderFrame(contactFrame, function()
         MessageBox.settings.friendsListCollapsed = not MessageBox.settings.friendsListCollapsed
         MessageBox:UpdateContactList()
-    end)
+    end, "MessageBoxFriendsHeaderPlus", "MessageBoxFriendsHeaderMinus")
     MessageBox.friendsHeader.text:SetText("Friends")
     
     MessageBox.conversationsHeader = MessageBox:CreateHeaderFrame(contactFrame, function()
         MessageBox.settings.conversationsListCollapsed = not MessageBox.settings.conversationsListCollapsed
         MessageBox:UpdateContactList()
-    end)
+    end, "MessageBoxConversationsHeaderPlus", "MessageBoxConversationsHeaderMinus")
     MessageBox.conversationsHeader.text:SetText("Conversations")
 
     local friendsScroll = CreateFrame("ScrollFrame", "MessageBoxFriendsScroll", contactFrame, "FauxScrollFrameTemplate")
     friendsScroll:SetScript("OnVerticalScroll", function() 
-        FauxScrollFrame_OnVerticalScroll(MessageBox.layout.ROW_HEIGHT, function() MessageBox:UpdateScrollViews() end) 
+        FauxScrollFrame_OnVerticalScroll(1, function() MessageBox:UpdateScrollViews() end) 
     end)
     MessageBox.friendsScroll = friendsScroll
     
     local convosScroll = CreateFrame("ScrollFrame", "MessageBoxConversationsScroll", contactFrame, "FauxScrollFrameTemplate")
     convosScroll:SetScript("OnVerticalScroll", function() 
-        FauxScrollFrame_OnVerticalScroll(MessageBox.layout.ROW_HEIGHT, function() MessageBox:UpdateScrollViews() end) 
+        FauxScrollFrame_OnVerticalScroll(1, function() MessageBox:UpdateScrollViews() end) 
     end)
     MessageBox.conversationsScroll = convosScroll
 
@@ -700,7 +721,7 @@ function MessageBox:CreateFrame()
         if (now - MessageBox.chatLastRenderTime) < MessageBox.RENDER_THROTTLE then return end
         MessageBox.chatRenderDirty = false
         MessageBox.chatLastRenderTime = now
-        MessageBox:UpdateChatHistory()
+        MessageBox:UpdateChatHistory(nil, false)
     end)
     
     chatHistory:EnableMouse(true)
@@ -818,13 +839,63 @@ function MessageBox:CreateFrame()
     bellButton:SetScript("OnLeave", function() GameTooltip:Hide() end)
     bellButton.UpdateState()
     MessageBox.bellButton = bellButton
-    
+
+    local openWindowButton = CreateFrame("Button", nil, frame)
+    openWindowButton:SetWidth(20)
+    openWindowButton:SetHeight(20)
+    openWindowButton:SetPoint("LEFT", bellButton, "RIGHT", 5, 0)
+    openWindowButton:SetHighlightTexture(MessageBox.textures.minimizeBtnHi)
+
+    openWindowButton.UpdateState = function()
+        if MessageBox.settings.openWindowOnWhisper then
+            openWindowButton:SetNormalTexture(MessageBox.textures.envelopeOpen)
+            openWindowButton:SetAlpha(1.0)
+            openWindowButton:GetNormalTexture():SetVertexColor(1, 1, 1)
+        else
+            openWindowButton:SetNormalTexture(MessageBox.textures.envelope)
+            openWindowButton:SetAlpha(0.65)
+            openWindowButton:GetNormalTexture():SetVertexColor(1, 1, 1)
+        end
+    end
+
+    openWindowButton:SetScript("OnClick", function()
+        MessageBox.settings.openWindowOnWhisper = not MessageBox.settings.openWindowOnWhisper
+        this.UpdateState()
+        MessageBox:UpdateMinimapBadge()
+        if GameTooltip:IsOwned(this) then
+            this:GetScript("OnEnter")()
+        end
+    end)
+
+    openWindowButton:SetScript("OnEnter", function()
+        GameTooltip:SetOwner(this, "ANCHOR_RIGHT")
+        GameTooltip:SetText("Open Window on Whisper")
+        if MessageBox.settings.openWindowOnWhisper then
+            GameTooltip:AddLine("Status: |cff00ff00Enabled|r", 1, 1, 1)
+        else
+            GameTooltip:AddLine("Status: |cffff0000Disabled|r", 1, 1, 1)
+        end
+        GameTooltip:Show()
+    end)
+    openWindowButton:SetScript("OnLeave", function() GameTooltip:Hide() end)
+    openWindowButton.UpdateState()
+    MessageBox.openWindowButton = openWindowButton
+
     local settingsDropDown = CreateFrame("Frame", "MessageBoxSettingsDropDown", frame, "UIDropDownMenuTemplate")
 
     -- Throttled relayout on resize
     MessageBox.relayoutDirty = false
     MessageBox.relayoutLastUpdate = 0
     frame:SetScript("OnUpdate", function()
+        if MessageBox.pendingWhisperFocusFrames then
+            MessageBox.pendingWhisperFocusFrames = MessageBox.pendingWhisperFocusFrames - 1
+            if MessageBox.pendingWhisperFocusFrames <= 0 then
+                MessageBox.pendingWhisperFocusFrames = nil
+                if MessageBox.whisperInput and MessageBox.frame and MessageBox.frame:IsVisible() then
+                    MessageBox.whisperInput:SetFocus()
+                end
+            end
+        end
         if not MessageBox.relayoutDirty then return end
         local now = GetTime()
         if (now - MessageBox.relayoutLastUpdate) < 0.05 then return end
@@ -859,10 +930,9 @@ function MessageBox:RelayoutMainFrame()
         self.contactFrame:SetWidth(sidebarWidth)
     end
 
-    -- Search box width
     local searchBox = getglobal("MessageBoxContactSearch")
     if searchBox then
-        searchBox:SetWidth(sidebarWidth - 20)
+        searchBox:SetWidth(sidebarWidth - 10)
     end
 
     -- Clip child width
@@ -1004,16 +1074,6 @@ function MessageBox:MarkContactListDirty()
     MessageBox.contactListDirty = true
 end
 
-function MessageBox:SetContactRowSelectionHighlight(row, contactName)
-    if not row or not row.selectionBg then return end
-    if MessageBox.selectedContact and contactName and MessageBox.selectedContact == contactName then
-        MessageBox:SkinContactRowSelectionHighlightTexture(row.selectionBg)
-        row.selectionBg:Show()
-    else
-        row.selectionBg:Hide()
-    end
-end
-
 function MessageBox:UpdateScrollViews()
     if not MessageBox.contactFrame then return end
 
@@ -1026,8 +1086,7 @@ function MessageBox:UpdateScrollViews()
     local HEADER_HEIGHT = L.HEADER_HEIGHT
     local BOTTOM_PADDING = L.BOTTOM_PADDING
     local MIDDLE_PADDING = L.MIDDLE_PADDING
-    local contactRowWidth = MessageBox:GetPanelBackdropInnerWidth(MessageBox.contactFrame)
-    local contactRowScrollX = MessageBox:GetContactListRowLeftOffsetFromScroll()
+    
     local containerHeight = MessageBox.frame:GetHeight() - 66
     local availableHeight = containerHeight - SEARCH_AREA_HEIGHT - (HEADER_HEIGHT * 2) - BOTTOM_PADDING - MIDDLE_PADDING
     
@@ -1059,8 +1118,8 @@ function MessageBox:UpdateScrollViews()
         convosHeight = availableHeight
     end
     
-    if friendsHeight < ROW_HEIGHT then friendsHeight = ROW_HEIGHT end
-    if convosHeight < ROW_HEIGHT then convosHeight = ROW_HEIGHT end
+    if friendsHeight < 16 then friendsHeight = 16 end
+    if convosHeight < 16 then convosHeight = 16 end
 
     if friendsCollapsed then
         MessageBox.friendsHeader.plusButton:Show()
@@ -1105,12 +1164,12 @@ function MessageBox:UpdateScrollViews()
 
     if not friendsCollapsed then
         local listSize = table.getn(MessageBox.visibleFriends)
-        local displayRows = math.ceil(friendsHeight / ROW_HEIGHT)
-        local scrollRows = math.floor(friendsHeight / ROW_HEIGHT)
+        local displayRows = math.ceil(friendsHeight / 16)
+        local scrollRows = math.floor(friendsHeight / 16)
         if scrollRows < 1 then scrollRows = 1 end
         
         MessageBox:EnsureRows(MessageBox.clipChild or MessageBox.contactFrame, MessageBox.friendRows, displayRows)
-        FauxScrollFrame_Update(MessageBoxFriendsScroll, listSize, scrollRows, ROW_HEIGHT)
+        FauxScrollFrame_Update(MessageBoxFriendsScroll, listSize, scrollRows, 1)
         
         local offset = FauxScrollFrame_GetOffset(MessageBoxFriendsScroll)
         for i = 1, table.getn(MessageBox.friendRows) do
@@ -1148,11 +1207,9 @@ function MessageBox:UpdateScrollViews()
 
                     row.contactName = data.name
 
-                    row:SetHeight(ROW_HEIGHT)
-                    row:SetPoint("TOPLEFT", MessageBox.friendsScroll, "TOPLEFT", contactRowScrollX, -((i-1)*ROW_HEIGHT))
-                    row:SetWidth(contactRowWidth)
+                    row:SetPoint("TOPLEFT", MessageBox.friendsScroll, "TOPLEFT", 8, -((i-1)*16))
+                    row:SetWidth(MessageBox.friendsScroll:GetWidth())
                     row.text:SetWidth(row:GetWidth() - 10)
-                    MessageBox:SetContactRowSelectionHighlight(row, data.name)
                     row:Show()
                 else
                     row:Hide()
@@ -1166,12 +1223,12 @@ function MessageBox:UpdateScrollViews()
     if not conversationsCollapsed then
         local listSize = table.getn(MessageBox.visibleConversations)
         
-        local displayRows = math.ceil(convosHeight / ROW_HEIGHT)
-        local scrollRows = math.floor(convosHeight / ROW_HEIGHT)
+        local displayRows = math.ceil(convosHeight / 16)
+        local scrollRows = math.floor(convosHeight / 16)
         if scrollRows < 1 then scrollRows = 1 end
         
         MessageBox:EnsureRows(MessageBox.clipChild or MessageBox.contactFrame, MessageBox.conversationRows, displayRows)
-        FauxScrollFrame_Update(MessageBoxConversationsScroll, listSize, scrollRows, ROW_HEIGHT)
+        FauxScrollFrame_Update(MessageBoxConversationsScroll, listSize, scrollRows, 1)
         
         local offset = FauxScrollFrame_GetOffset(MessageBoxConversationsScroll)
         for i = 1, table.getn(MessageBox.conversationRows) do
@@ -1216,12 +1273,10 @@ function MessageBox:UpdateScrollViews()
 
                     row.contactName = data.name
 
-                    row:SetHeight(ROW_HEIGHT)
-                    row:SetPoint("TOPLEFT", MessageBox.conversationsScroll, "TOPLEFT", contactRowScrollX, -((i-1)*ROW_HEIGHT))
-                    row:SetWidth(contactRowWidth)
+                    row:SetPoint("TOPLEFT", MessageBox.conversationsScroll, "TOPLEFT", 8, -((i-1)*16))
+                    row:SetWidth(MessageBox.conversationsScroll:GetWidth())
                     local textRight = data.pinned and 22 or 10
                     row.text:SetWidth(row:GetWidth() - textRight)
-                    MessageBox:SetContactRowSelectionHighlight(row, data.name)
                     row:Show()
                 else
                     row:Hide()
@@ -1270,14 +1325,26 @@ function MessageBox:SelectContact(contact)
     MessageBox:UpdateMinimapBadge()
     MessageBox:UpdateContactList()
     
-    MessageBox:UpdateChatHistory(unreadToPass, true)
+    MessageBox:UpdateChatHistory(unreadToPass)
     
     if MessageBox.whisperInput then
-        MessageBox.whisperInput:SetFocus()
+        MessageBox:ScheduleWhisperInputFocus()
     end
+
+    -- Background /who for class/guild when focusing this contact (e.g. chat name click → whisper).
+    MessageBox:AddToWhoQueue(contact)
 end
 
 function MessageBox:UpdateChatHistory(unreadCount, resetToBottom)
+    -- Default: jump to the latest message. Only preserve scroll position when re-rendering
+    -- after the user moved the scrollbar (resetToBottom == false) or during in-chat search.
+    if resetToBottom == nil then
+        resetToBottom = true
+    end
+    if MessageBox.chatSearchActive then
+        resetToBottom = false
+    end
+
     if MessageBox.detachedWindows then
         for name, win in pairs(MessageBox.detachedWindows) do
             if win and win:IsVisible() and win.UpdateDisplay then
@@ -1368,7 +1435,6 @@ function MessageBox:SendWhisper()
         return
     end
 
-    MessageBox:AddMessage(MessageBox.selectedContact, message, true)
     SendChatMessage(message, "WHISPER", nil, MessageBox.selectedContact)
     
     MessageBox.whisperInput:SetText("")
@@ -1391,8 +1457,13 @@ function MessageBox:SendWhisper()
     if MessageBox.chatScrollBar then
         local min, max = MessageBox.chatScrollBar:GetMinMaxValues()
         MessageBox.chatScrollBar:SetValue(max)
-        MessageBox:UpdateChatHistory(nil, true) 
+        MessageBox:UpdateChatHistory()
     end
+end
+
+function MessageBox:ScheduleWhisperInputFocus()
+    if not self.whisperInput then return end
+    self.pendingWhisperFocusFrames = 2
 end
 
 function MessageBox:ShowFrame()
@@ -1406,13 +1477,14 @@ function MessageBox:ShowFrame()
         self:UpdateChatHeader()
         self:UpdateChatHistory() 
     end
-    if self.whisperInput then self.whisperInput:SetFocus() end
+    if self.whisperInput then self:ScheduleWhisperInputFocus() end
 end
 
 function MessageBox:HideFrame()
     if self.chatSearchActive then
         self:CloseSearchBar()
     end
+    self.pendingWhisperFocusFrames = nil
     if self.frame then self.frame:Hide() end
 end
 

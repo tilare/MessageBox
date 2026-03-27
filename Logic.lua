@@ -1,5 +1,7 @@
 -- Logic.lua
 -- Who lookups, Hooks, Message storage
+-- Background WHO uses FriendsFrame_OnEvent + SetWhoToUI so the default WHO UI
+-- does not pop; the 1 Hz queue drives SendWho; WHO_LIST_UPDATE may also arrive on our event frame.
 
 -- Who lookups
 function MessageBox:AddToWhoQueue(name)
@@ -50,6 +52,7 @@ function MessageBox:ProcessWhoQueue()
             MessageBox.waitingForWhoResult = false
             MessageBox.currentWhoEntry = nil
             MessageBox.whoTimer = now
+            if SetWhoToUI then SetWhoToUI(0) end
         end
         return
     end
@@ -85,7 +88,8 @@ function MessageBox:ProcessWhoQueue()
     MessageBox.waitingForWhoResult = true
     MessageBox.waitingForWhoSince = now
     MessageBox.currentWhoEntry = entry
-    SendWho("n-" .. entry.name)
+    if SetWhoToUI then SetWhoToUI(1) end
+    SendWho('n-"' .. entry.name .. '"')
 end
 
 function MessageBox:HandleWhoResult()
@@ -119,6 +123,9 @@ function MessageBox:HandleWhoResult()
                 MessageBox.settings.classCache[name].classUpper = string.upper(class)
                 if level and tonumber(level) == 60 then
                     MessageBox.settings.classCache[name].level = level
+                end
+                if race and race ~= "" then
+                    MessageBox.settings.classCache[name].race = race
                 end
             end
             
@@ -169,6 +176,8 @@ function MessageBox:HandleWhoResult()
             MessageBox.detachedWindows[targetName]:UpdateHeader()
         end
     end
+
+    if SetWhoToUI then SetWhoToUI(0) end
 end
 
 function MessageBox:PrintWhoQueue()
@@ -198,7 +207,40 @@ function MessageBox:ClearWhoQueue()
     MessageBox.whoQueue = {}
     MessageBox.waitingForWhoResult = false
     MessageBox.currentWhoEntry = nil
+    if SetWhoToUI then SetWhoToUI(0) end
     DEFAULT_CHAT_FRAME:AddMessage("|cff3cb7f0Message|rBox: WHO Queue cleared.")
+end
+
+-- WHO_LIST_UPDATE is delivered via FriendsFrame_OnEvent; we consume it here while a background
+-- lookup is in progress so Blizzard UI does not open.
+function MessageBox:FriendsFrame_OnEvent_Hook()
+    if event == "WHO_LIST_UPDATE" then
+        if self.waitingForWhoResult then
+            self:HandleWhoResult()
+            return
+        end
+    end
+    return self.original_FriendsFrame_OnEvent(event)
+end
+
+-- FriendsFrame may not exist at first SetupHooks; call again from PLAYER_LOGIN if needed.
+function MessageBox:SetupWhoFrameHooks()
+    if FriendsFrame_OnEvent and not self.original_FriendsFrame_OnEvent then
+        self.original_FriendsFrame_OnEvent = FriendsFrame_OnEvent
+        FriendsFrame_OnEvent = function()
+            return MessageBox:FriendsFrame_OnEvent_Hook()
+        end
+    end
+
+    if WhoList_Update and not self.original_WhoList_Update then
+        self.original_WhoList_Update = WhoList_Update
+        WhoList_Update = function()
+            if MessageBox.waitingForWhoResult then
+                return
+            end
+            return MessageBox.original_WhoList_Update()
+        end
+    end
 end
 
 -- Hooks
@@ -208,6 +250,13 @@ function MessageBox:SetupHooks()
         self.original_ChatFrame_SendTell = ChatFrame_SendTell
         ChatFrame_SendTell = function(name, chatFrame)
             if MessageBox.settings.interceptWhispers then
+                -- Blizzard calls SendTell while handling an incoming whisper; suppress when we
+                -- already marked this sender (user is viewing another conversation in the main frame).
+                local suppress = MessageBox.suppressSendTellForSwitch
+                if suppress and name and string.lower(suppress) == string.lower(name) then
+                    MessageBox.suppressSendTellForSwitch = nil
+                    return
+                end
                 MessageBox:SelectContact(name)
                 MessageBox:ShowFrame()
                 return
@@ -219,6 +268,16 @@ function MessageBox:SetupHooks()
     if not self.original_ChatFrame_OnEvent then
         self.original_ChatFrame_OnEvent = ChatFrame_OnEvent
         ChatFrame_OnEvent = function(event)
+            -- Mark the next SendTell for this sender so we can ignore it if the main frame is
+            -- open on another conversation (AddMessage may also skip SelectContact in that case).
+            if event == "CHAT_MSG_WHISPER" and MessageBox.settings.interceptWhispers then
+                local sender = arg2
+                local sel = MessageBox.selectedContact
+                if sender and sel and MessageBox.frame and MessageBox.frame:IsVisible()
+                    and string.lower(sel) ~= string.lower(sender) then
+                    MessageBox.suppressSendTellForSwitch = sender
+                end
+            end
             if MessageBox.settings.suppressWhispers then
                 if event == "CHAT_MSG_WHISPER" or event == "CHAT_MSG_WHISPER_INFORM" then
                     return
@@ -250,6 +309,8 @@ function MessageBox:SetupHooks()
             return MessageBox.original_ChatEdit_ParseText(editBox, send)
         end
     end
+
+    self:SetupWhoFrameHooks()
 end
 
 -- Message storage
@@ -298,8 +359,36 @@ function MessageBox:AddMessage(contact, message, isOutgoing)
             self.unreadCounts[contact] = self.unreadCounts[contact] + 1
             self:UpdateMinimapBadge()
             
-            if self.settings.popupNotificationsEnabled and (not self.frame or not self.frame:IsVisible()) then
+            if self.settings.openWindowOnWhisper then
+                -- Only jump to the sender when we are not already focused on another conversation
+                -- in an open main window (otherwise use unread counts / list like when this is off).
+                local viewingOther = self.frame and self.frame:IsVisible() and self.selectedContact
+                    and string.lower(self.selectedContact) ~= string.lower(contact)
+                if not viewingOther then
+                    self:SelectContact(contact)
+                    self:ShowFrame()
+                    if self.settings.notificationSound then
+                        PlaySoundFile("Interface\\AddOns\\MessageBox\\sound\\notification.wav")
+                    end
+                    -- SelectContact already refreshed chatHistory; skip incremental AddMessage below
+                    return
+                end
+            elseif self.settings.popupNotificationsEnabled and (not self.frame or not self.frame:IsVisible()) then
                 self:ShowNotificationPopup()
+            end
+        end
+    elseif isOutgoing and self.settings.openWindowOnWhisper then
+        -- SendChatMessage(..., "WHISPER") from other addons bypasses ChatFrame_SendTell; still open the
+        -- main window when "open on whisper" is enabled (same focus rules as incoming).
+        local detachedOpen = (self.detachedWindows[contact] and self.detachedWindows[contact]:IsVisible())
+        local mainOpen = (self.frame and self.frame:IsVisible() and self.selectedContact == contact)
+        if not mainOpen and not detachedOpen then
+            local viewingOther = self.frame and self.frame:IsVisible() and self.selectedContact
+                and string.lower(self.selectedContact) ~= string.lower(contact)
+            if not viewingOther then
+                self:SelectContact(contact)
+                self:ShowFrame()
+                return
             end
         end
     end
@@ -318,6 +407,13 @@ function MessageBox:AddMessage(contact, message, isOutgoing)
             
             self.chatHistory:AddMessage(formattedMessage)
             self.chatHistory:ScrollToBottom()
+            if self.chatScrollBar then
+                self.chatScrollBar.isUpdating = true
+                self.chatScrollBar:SetMinMaxValues(1, c.count)
+                self.chatScrollBar:SetValue(c.count)
+                self.chatScrollBar.isUpdating = false
+                self.chatScrollBar:Show()
+            end
             self:UpdateChatHeader()
         end
     end
@@ -361,6 +457,7 @@ function MessageBox:AddSystemMessage(contact, message, isTransient)
             self.chatScrollBar:SetMinMaxValues(1, c.count)
             self.chatScrollBar:SetValue(c.count)
             self.chatScrollBar.isUpdating = false
+            self.chatScrollBar:Show()
         end
     end
 end

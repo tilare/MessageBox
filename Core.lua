@@ -26,6 +26,9 @@ MessageBox.chatSearchTerm = ""
 MessageBox.chatSearchResults = {}
 MessageBox.chatSearchCurrentIndex = 0
 
+-- Defer whisper EditBox focus so keybinds/clicks that open the frame don't insert into input
+MessageBox.pendingWhisperFocusFrames = nil
+
 -- Nampower crash-save state
 MessageBox.hasNampower = false
 MessageBox.FLUSH_INTERVAL = 60      -- seconds between periodic auto-saves
@@ -63,6 +66,8 @@ MessageBox.layout = {
 -- Contact list dirty flag
 MessageBox.contactListDirty = false
 MessageBox.CONTACT_LIST_THROTTLE = 0.1
+-- Set when CHAT_MSG_WHISPER is handled so ChatFrame_SendTell can skip switching contacts.
+MessageBox.suppressSendTellForSwitch = nil
 
 -- Texture & font paths
 local A = "Interface\\AddOns\\MessageBox\\img\\"
@@ -167,6 +172,7 @@ MessageBox.defaultSettings = {
     conversationsListCollapsed = false,
     unreadCounts = {},
     popupNotificationsEnabled = true,
+    openWindowOnWhisper = false,
     notificationPopupPosition = { point = "CENTER", relativePoint = "CENTER", x = 0, y = -200 },
     modernTheme = true,
     hideOffline = false,
@@ -186,8 +192,19 @@ MessageBox.defaultSettings = {
     textColor = {1, 1, 1, 1},
     selectionColor = {0.8, 0.8, 0.8, 0.4},
     gmList = {},
-    classCache = {},  -- Persistent class/level data: { ["Name"] = { class="Mage", classUpper="MAGE", level=60 }, ... }
+    classCache = {},  -- Persistent: class, classUpper, level, race (optional), ...
 }
+
+-- Subheader line from /who cache: "Orc Warrior", or class/race alone if only one is known.
+function MessageBox:RaceClassTagline(cache)
+    if not cache then return nil end
+    if cache.race and cache.race ~= "" and cache.class and cache.class ~= "" then
+        return cache.race .. " " .. cache.class
+    end
+    if cache.class and cache.class ~= "" then return cache.class end
+    if cache.race and cache.race ~= "" then return cache.race end
+    return nil
+end
 
 -- Get message count for a conversation
 function MessageBox:GetCount(c)
