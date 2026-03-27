@@ -136,9 +136,12 @@ function MessageBox:UpdateMinimapBadge()
         end
     end
 
-    -- Notification popup
+    -- Floating notification: only when not using "open window on whisper", main window is closed,
+    -- and popup notifications are enabled (sidebar + minimap still update when main is open).
     if self.notificationPopup then
-        if totalUnread > 0 and self.settings.popupNotificationsEnabled then
+        if totalUnread > 0 and self.settings.popupNotificationsEnabled
+            and not self.settings.openWindowOnWhisper
+            and not (self.frame and self.frame:IsVisible()) then
             self.notificationPopup:Show()
             self.notificationPopup.badge:Show()
             self.notificationPopup.countText:SetText(totalUnread)
@@ -175,7 +178,7 @@ function MessageBox:ShowSettingsFrame()
         local f = CreateFrame("Frame", "MessageBoxSettingsFrame", UIParent)
         tinsert(UISpecialFrames, "MessageBoxSettingsFrame")
         f:SetWidth(200)
-        f:SetHeight(355)
+        f:SetHeight(381)
         
         if self.settingsButton and self.settingsButton:IsVisible() then
              f:SetPoint("BOTTOMLEFT", self.settingsButton, "TOPLEFT", 0, 5)
@@ -1127,7 +1130,6 @@ function MessageBox:OpenDetachedWindow(contact)
     editBox:SetScript("OnEnterPressed", function()
         local msg = this:GetText()
         if msg and msg ~= "" then
-            MessageBox:AddMessage(contact, msg, true)
             SendChatMessage(msg, "WHISPER", nil, contact)
             this:SetText("")
             this:ClearFocus()

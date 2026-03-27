@@ -6,6 +6,7 @@ function MessageBox:OnLoad()
     MessageBox.eventFrame:RegisterEvent("CHAT_MSG_WHISPER")
     MessageBox.eventFrame:RegisterEvent("CHAT_MSG_WHISPER_INFORM")
     MessageBox.eventFrame:RegisterEvent("PLAYER_LOGIN")
+    MessageBox.eventFrame:RegisterEvent("PLAYER_ENTERING_WORLD")
     MessageBox.eventFrame:RegisterEvent("FRIENDLIST_UPDATE")
     MessageBox.eventFrame:RegisterEvent("CHAT_MSG_SYSTEM")
     MessageBox.eventFrame:RegisterEvent("CHAT_MSG_AFK")
@@ -124,7 +125,14 @@ function MessageBox:OnEvent(event)
         MessageBox.searchQuery = "" 
         MessageBox:CreateMinimapButton()
 
-        MessageBox:SetupWhoFrameHooks()
+        if MessageBox_pfUISkin then
+            MessageBox_pfUISkin()
+        end
+
+    elseif event == "PLAYER_ENTERING_WORLD" then
+        if MessageBox_pfUISkin then
+            MessageBox_pfUISkin()
+        end
 
     elseif event == "CHAT_MSG_WHISPER" then
         local message = arg1
