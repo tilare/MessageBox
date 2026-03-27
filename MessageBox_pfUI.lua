@@ -166,6 +166,27 @@ local function skinStdButton(btn)
     end)
 end
 
+-- Identical to pfUI chat scrollbar ends: SkinScrollbar calls SkinArrowButton(up/down) only.
+-- SkinArrowButton uses SetAllPointsOffset(icon, btn, 3); slightly larger inset shrinks the glyph.
+local SEARCH_NAV_ARROW_ICON_INSET = 5
+
+local function skinChatSearchNavButton(btn, dir)
+    if not btn or not canRun() then return end
+    pcall(function()
+        pfUI.api.SkinArrowButton(btn, dir)
+        if btn.icon then
+            if pfUI.api.SetAllPointsOffset then
+                pfUI.api.SetAllPointsOffset(btn.icon, btn, SEARCH_NAV_ARROW_ICON_INSET)
+            else
+                local inset = SEARCH_NAV_ARROW_ICON_INSET
+                btn.icon:ClearAllPoints()
+                btn.icon:SetPoint("TOPLEFT", btn, "TOPLEFT", inset, -inset)
+                btn.icon:SetPoint("BOTTOMRIGHT", btn, "BOTTOMRIGHT", -inset, inset)
+            end
+        end
+    end)
+end
+
 -- Same pattern as Outfitter category rows: pfUI SkinCollapseButton + Blizzard +/- paths for the hook.
 local TEX_UI_PLUS = "Interface\\Buttons\\UI-PlusButton-Up"
 local TEX_UI_MINUS = "Interface\\Buttons\\UI-MinusButton-Up"
@@ -210,8 +231,8 @@ local function skinChatSearchBarFrame()
             syncBackdropColors(bar.searchInput, 0.75)
         end
     end
-    skinStdButton(bar.prevBtn)
-    skinStdButton(bar.nextBtn)
+    skinChatSearchNavButton(bar.prevBtn, "up")
+    skinChatSearchNavButton(bar.nextBtn, "down")
     if bar.closeBtn then skinClose(bar.closeBtn, bar.backdrop or bar) end
 end
 
