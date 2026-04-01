@@ -204,7 +204,7 @@ MessageBox.defaultSettings = {
     textColor = {1, 1, 1, 1},
     selectionColor = {0.8, 0.8, 0.8, 0.4},
     gmList = {},
-    classCache = {},  -- Persistent class/level data: { ["Name"] = { class="Mage", classUpper="MAGE", level=60 }, ... }
+    classCache = {},
 }
 
 -- Get message count for a conversation
@@ -217,10 +217,7 @@ end
 MessageBox.whoPlayerQueue = {}
 MessageBox.whoScanInProgress = false
 MessageBox.whoLastSent = nil
-MessageBox.whoPendingName = nil
 MessageBox.whoApplyBusy = false
-MessageBox.whoPollFrame = nil
-MessageBox.whoPollAccum = 0
 MessageBox.WHO_INTERVAL = 30
 MessageBox.WHO_TIMEOUT = 10
 MessageBox.WHO_MAX_ATTEMPTS = 5

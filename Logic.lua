@@ -53,50 +53,7 @@ end
 
 function MessageBox:IsWhoCacheComplete(cache)
     if not cache then return false end
-    return cache.class and cache.level and cache.race and cache.guild ~= nil
-end
-
-function MessageBox:WhoSendQueryString(shortName, style)
-    style = style or 1
-    if style == 2 then
-        return "n-" .. shortName
-    end
-    if style == 3 then
-        return shortName
-    end
-    return 'n-"' .. shortName .. '"'
-end
-
-function MessageBox:StopWhoResultPoll()
-    if MessageBox.whoPollFrame then
-        MessageBox.whoPollFrame:SetScript("OnUpdate", nil)
-    end
-end
-
-local WHO_POLL_INTERVAL = 0.08
-
-function MessageBox:StartWhoResultPoll()
-    if not MessageBox.whoPollFrame then
-        MessageBox.whoPollFrame = CreateFrame("Frame", "MessageBoxWhoPollFrame")
-    end
-    local f = MessageBox.whoPollFrame
-    MessageBox.whoPollAccum = 0
-    MessageBox:StopWhoResultPoll()
-    f:SetScript("OnUpdate", function()
-        if not MessageBox.whoScanInProgress then
-            MessageBox:StopWhoResultPoll()
-            return
-        end
-        MessageBox.whoPollAccum = (MessageBox.whoPollAccum or 0) + arg1
-        if MessageBox.whoPollAccum < WHO_POLL_INTERVAL then
-            return
-        end
-        MessageBox.whoPollAccum = 0
-        local n = GetNumWhoResults and GetNumWhoResults()
-        if n and n > 0 then
-            MessageBox:ApplyWhoListUpdate()
-        end
-    end)
+    return cache.class and cache.guild ~= nil
 end
 
 function MessageBox:WhoQueueCount()
@@ -138,7 +95,7 @@ function MessageBox:AddToWhoQueue(name, callback)
         while MessageBox:WhoQueueCount() >= MessageBox.WHO_QUEUE_MAX do
             MessageBox:WhoQueueDropOne()
         end
-        q = { attempts = 0, callbacks = {}, queryStyle = 1 }
+        q = { attempts = 0, callbacks = {} }
         MessageBox.whoPlayerQueue[name] = q
     end
     if callback then
@@ -174,20 +131,20 @@ function MessageBox:ApplyWhoListUpdate()
         return
     end
 
-    local function persistWhoCache(key, guild, level, race, class)
-        if not MessageBox.settings.classCache or not class then return end
+    local function persistWhoCache(key, class, level)
+        if not class or not MessageBox.settings.classCache then return end
         if not MessageBox.settings.classCache[key] then
             MessageBox.settings.classCache[key] = {}
         end
         local s = MessageBox.settings.classCache[key]
         s.class = class
         s.classUpper = string.upper(class)
-        if level then s.level = level end
-        if race then s.race = race end
-        if guild ~= nil then s.guild = guild end
+        if level and tonumber(level) == 60 then
+            s.level = level
+        end
     end
 
-    local function applyWhoRow(cacheKey, guild, level, race, class, zone)
+    local function applyWhoRow(cacheKey, guild, level, race, class)
         if not MessageBox.playerCache[cacheKey] then MessageBox.playerCache[cacheKey] = {} end
         local p = MessageBox.playerCache[cacheKey]
         p.level = level
@@ -195,14 +152,13 @@ function MessageBox:ApplyWhoListUpdate()
         p.classUpper = class and string.upper(class) or nil
         p.race = race
         p.guild = guild
-        p.zone = zone
     end
 
     local resolutions = {}
     local seenQName = {}
 
     for i = 1, numWhos do
-        local wName, guild, level, race, class, zone = GetWhoInfo(i)
+        local wName, guild, level, race, class = GetWhoInfo(i)
         if wName then
             for qName, qEntry in pairs(MessageBox.whoPlayerQueue) do
                 if not seenQName[qName] and MessageBox:WhoRowMatchesQueuedName(wName, qName) then
@@ -214,20 +170,15 @@ function MessageBox:ApplyWhoListUpdate()
                         level = level,
                         race = race,
                         class = class,
-                        zone = zone,
                     })
                 end
             end
         end
     end
 
-    if table.getn(resolutions) > 0 then
-        MessageBox.whoPendingName = nil
-    end
-
     for _, r in ipairs(resolutions) do
-        applyWhoRow(r.qName, r.guild, r.level, r.race, r.class, r.zone)
-        persistWhoCache(r.qName, r.guild, r.level, r.race, r.class)
+        applyWhoRow(r.qName, r.guild, r.level, r.race, r.class)
+        persistWhoCache(r.qName, r.class, r.level)
         local cbs = r.qEntry.callbacks
         MessageBox.whoPlayerQueue[r.qName] = nil
         for _, cb in ipairs(cbs) do
@@ -249,13 +200,10 @@ function MessageBox:ApplyWhoListUpdate()
     end
 
     MessageBox.whoApplyBusy = false
-    MessageBox:StopWhoResultPoll()
 end
 
 function MessageBox:ProcessWhoQueue()
-    if not MessageBox.settings then return end
-
-    if not MessageBox.settings.backgroundWho then
+    if not MessageBox.settings or not MessageBox.settings.backgroundWho then
         return
     end
 
@@ -276,16 +224,6 @@ function MessageBox:ProcessWhoQueue()
         if elapsed < WHO_RESPONSE_WAIT then
             return
         end
-        MessageBox:StopWhoResultPoll()
-        if MessageBox.whoPendingName and MessageBox.whoPlayerQueue[MessageBox.whoPendingName] then
-            local ent = MessageBox.whoPlayerQueue[MessageBox.whoPendingName]
-            local qs = tonumber(ent.queryStyle) or 1
-            if qs < 1 or qs > 3 then qs = 1 end
-            local nextStyle = qs + 1
-            if nextStyle > 3 then nextStyle = 1 end
-            ent.queryStyle = nextStyle
-        end
-        MessageBox.whoPendingName = nil
         MessageBox.whoScanInProgress = false
         MessageBox:RestoreWhoUiMode()
     end
@@ -325,19 +263,15 @@ function MessageBox:ProcessWhoQueue()
     end
 
     local info = MessageBox.whoPlayerQueue[nextPlayer]
-    local q = MessageBox:PlayerNameWithoutRealm(nextPlayer)
-    if not q or q == "" then q = nextPlayer end
-    local style = info.queryStyle or 1
-    local query = MessageBox:WhoSendQueryString(q, style)
+    local sendName = MessageBox:PlayerNameWithoutRealm(nextPlayer)
+    if not sendName or sendName == "" then sendName = nextPlayer end
 
-    MessageBox.whoPendingName = nextPlayer
     MessageBox.whoSuppressChat = true
     MessageBox:SetWhoResultsQuietMode()
     MessageBox.whoScanInProgress = true
-    SendWho(query)
+    SendWho('n-"' .. sendName .. '"')
     info.attempts = info.attempts + 1
     MessageBox.whoLastSent = now
-    MessageBox:StartWhoResultPoll()
 
     if WhoFrame and WhoFrame.Hide then
         WhoFrame:Hide()
@@ -362,11 +296,9 @@ function MessageBox:PrintWhoQueue()
 end
 
 function MessageBox:ClearWhoQueue()
-    MessageBox:StopWhoResultPoll()
     MessageBox.whoPlayerQueue = {}
     MessageBox.whoScanInProgress = false
     MessageBox.whoLastSent = nil
-    MessageBox.whoPendingName = nil
     MessageBox.whoApplyBusy = false
     MessageBox:RestoreWhoUiMode()
     DEFAULT_CHAT_FRAME:AddMessage("|cff3cb7f0Message|rBox: WHO queue cleared.")
@@ -378,7 +310,7 @@ function MessageBox:InstallWhoUiHooks()
     end
     if FriendsFrame_OnEvent then
         MessageBox.original_FriendsFrame_OnEvent = FriendsFrame_OnEvent
-        FriendsFrame_OnEvent = function(event)
+        FriendsFrame_OnEvent = function()
             if event == "WHO_LIST_UPDATE" and MessageBox.settings and MessageBox.settings.backgroundWho and MessageBox.whoScanInProgress then
                 MessageBox:ApplyWhoListUpdate()
                 return

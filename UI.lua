@@ -317,14 +317,13 @@ function MessageBox:UpdateChatHeader()
         local nameLower = string.lower(name)
         local shortLower = string.lower(self:PlayerNameWithoutRealm(name) or name)
         for i = 1, GetNumFriends() do
-            local fName, fLevel, fClass, fArea, fConnected, fStatus = GetFriendInfo(i)
+            local fName, fLevel, fClass, _, fConnected, fStatus = GetFriendInfo(i)
             if fName then
                 local fLower = string.lower(fName)
                 if fLower == nameLower or fLower == shortLower then
                     cache.level = fLevel
                     cache.class = fClass
                     cache.classUpper = fClass and string.upper(fClass) or nil
-                    cache.zone = fArea
                     cache.status = fStatus
                     break
                 end
@@ -354,13 +353,24 @@ function MessageBox:UpdateChatHeader()
         
         self.chatHeader.nameText:SetText(displayTitle)
 
-        -- AFK/DND status display
         if cache and cache.status and cache.status ~= "" then
             self.chatHeader.guildText:SetText("|cffaaaaaa" .. cache.status .. "|r")
             self.chatHeader.guildText:Show()
         else
-            self.chatHeader.guildText:SetText("")
-            self.chatHeader.guildText:Hide()
+            local rc = {}
+            if cache.race and cache.race ~= "" then
+                table.insert(rc, cache.race)
+            end
+            if cache.class and cache.class ~= "" then
+                table.insert(rc, cache.class)
+            end
+            if table.getn(rc) > 0 then
+                self.chatHeader.guildText:SetText("|cffaaaaaa" .. table.concat(rc, " ") .. "|r")
+                self.chatHeader.guildText:Show()
+            else
+                self.chatHeader.guildText:SetText("")
+                self.chatHeader.guildText:Hide()
+            end
         end
 
         local infoString = ""
@@ -374,18 +384,6 @@ function MessageBox:UpdateChatHeader()
             infoString = infoString .. "Level " .. cache.level
         else
             infoString = infoString .. "Unknown Level"
-        end
-
-        if cache.race and cache.race ~= "" then
-            infoString = infoString .. " " .. cache.race
-        end
-
-        if cache.class and cache.class ~= "" then
-            infoString = infoString .. " " .. cache.class
-        end
-
-        if cache.zone and cache.zone ~= "" and cache.zone ~= "Unknown" then
-             infoString = infoString .. " • " .. cache.zone
         end
 
         if cache.class and CLASS_ICON_TCOORDS[cache.classUpper] then
@@ -976,7 +974,7 @@ function MessageBox:UpdateContactList()
     MessageBox.onlineStatus = {}
     MessageBox.friendSet = {}
     for i = 1, GetNumFriends() do
-        local name, level, class, area, connected, status = GetFriendInfo(i)
+        local name, level, class, _, connected, status = GetFriendInfo(i)
         if name then
             local nameLower = string.lower(name)
             MessageBox.onlineStatus[nameLower] = connected
@@ -991,7 +989,6 @@ function MessageBox:UpdateContactList()
                  MessageBox.playerCache[name].class = class
                  MessageBox.playerCache[name].classUpper = class and string.upper(class) or nil
                  MessageBox.playerCache[name].level = level
-                 MessageBox.playerCache[name].zone = area
                  MessageBox.playerCache[name].status = status
                  
                  table.insert(MessageBox.visibleFriends, {

@@ -11,8 +11,7 @@ function MessageBox:OnLoad()
     MessageBox.eventFrame:RegisterEvent("CHAT_MSG_SYSTEM")
     MessageBox.eventFrame:RegisterEvent("CHAT_MSG_AFK")
     MessageBox.eventFrame:RegisterEvent("CHAT_MSG_DND")
-    MessageBox.eventFrame:RegisterEvent("WHO_LIST_UPDATE")
-    
+
     SLASH_MESSAGEBOX1 = "/messagebox"
     SLASH_MESSAGEBOX2 = "/mb"
     SLASH_MESSAGEBOX3 = "/mbox"
@@ -214,11 +213,6 @@ function MessageBox:OnEvent(event)
             MessageBox:MarkContactListDirty()
         end
 
-    elseif event == "WHO_LIST_UPDATE" then
-        if MessageBox.settings and MessageBox.settings.backgroundWho and MessageBox.whoScanInProgress then
-            MessageBox:ApplyWhoListUpdate()
-        end
-        
     elseif event == "CHAT_MSG_AFK" then
         local message = arg1
         local sender = arg2
@@ -248,8 +242,6 @@ function MessageBox:OnEvent(event)
         MessageBox:WriteCrashSaveClean()
     end
 end
-
--- Debug
 
 function MessageBox:RunStressTest(numContacts, numMessages)
     numContacts = numContacts or 1000
