@@ -1057,23 +1057,28 @@ function MessageBox:MarkContactListDirty()
     MessageBox.contactListDirty = true
 end
 
-function MessageBox:SetContactRowSelectionHighlight(row, contactName, highlightRightInset)
+function MessageBox:SetContactRowSelectionHighlight(row, contactName)
     if not row or not row.selectionBg then return end
     local bg = row.selectionBg
-    highlightRightInset = highlightRightInset or 0
     bg:ClearAllPoints()
-    if highlightRightInset > 0 then
-        bg:SetPoint("TOPLEFT", row, "TOPLEFT", 0, 0)
-        bg:SetPoint("BOTTOMRIGHT", row, "BOTTOMRIGHT", -highlightRightInset, 0)
-    else
-        bg:SetAllPoints(row)
-    end
+    bg:SetAllPoints(row)
     if MessageBox.selectedContact and contactName and MessageBox.selectedContact == contactName then
         MessageBox:SkinContactRowSelectionHighlightTexture(bg)
         bg:Show()
     else
         bg:Hide()
     end
+end
+
+-- Pin sits right of the name (row width already clears the scrollbar when the track is shown).
+function MessageBox:LayoutContactRowPinIcon(row, rowHeight)
+    if not row or not row.pinIcon then return end
+    local pinRight = 2
+    row.pinIcon:ClearAllPoints()
+    row.pinIcon:SetWidth(10)
+    row.pinIcon:SetHeight(10)
+    row.pinIcon:SetPoint("TOP", row, "TOP", 0, -(rowHeight - 10) / 2)
+    row.pinIcon:SetPoint("RIGHT", row, "RIGHT", -pinRight, 0)
 end
 
 function MessageBox:UpdateScrollViews()
@@ -1173,7 +1178,9 @@ function MessageBox:UpdateScrollViews()
         
         MessageBox:EnsureRows(MessageBox.clipChild or MessageBox.contactFrame, MessageBox.friendRows, displayRows)
         FauxScrollFrame_Update(MessageBoxFriendsScroll, listSize, scrollRows, ROW_HEIGHT)
-        local friendsHighlightInset = MessageBox:GetContactListScrollHighlightInset(MessageBox.friendsScroll, listSize, scrollRows)
+        local friendsScrollbarGutter = MessageBox:GetContactListScrollbarGutterWidth(MessageBox.friendsScroll, listSize, scrollRows)
+        local friendsRowWidth = contactRowWidth - friendsScrollbarGutter
+        if friendsRowWidth < 1 then friendsRowWidth = 1 end
 
         local offset = FauxScrollFrame_GetOffset(MessageBoxFriendsScroll)
         for i = 1, table.getn(MessageBox.friendRows) do
@@ -1213,9 +1220,9 @@ function MessageBox:UpdateScrollViews()
 
                     row:SetHeight(ROW_HEIGHT)
                     row:SetPoint("TOPLEFT", MessageBox.friendsScroll, "TOPLEFT", contactRowScrollX, -((i-1)*ROW_HEIGHT))
-                    row:SetWidth(contactRowWidth)
+                    row:SetWidth(friendsRowWidth)
                     row.text:SetWidth(row:GetWidth() - 10)
-                    MessageBox:SetContactRowSelectionHighlight(row, data.name, friendsHighlightInset)
+                    MessageBox:SetContactRowSelectionHighlight(row, data.name)
                     row:Show()
                 else
                     row:Hide()
@@ -1235,7 +1242,9 @@ function MessageBox:UpdateScrollViews()
         
         MessageBox:EnsureRows(MessageBox.clipChild or MessageBox.contactFrame, MessageBox.conversationRows, displayRows)
         FauxScrollFrame_Update(MessageBoxConversationsScroll, listSize, scrollRows, ROW_HEIGHT)
-        local convosHighlightInset = MessageBox:GetContactListScrollHighlightInset(MessageBox.conversationsScroll, listSize, scrollRows)
+        local convosScrollbarGutter = MessageBox:GetContactListScrollbarGutterWidth(MessageBox.conversationsScroll, listSize, scrollRows)
+        local convosRowWidth = contactRowWidth - convosScrollbarGutter
+        if convosRowWidth < 1 then convosRowWidth = 1 end
 
         local offset = FauxScrollFrame_GetOffset(MessageBoxConversationsScroll)
         for i = 1, table.getn(MessageBox.conversationRows) do
@@ -1272,6 +1281,7 @@ function MessageBox:UpdateScrollViews()
                         row.text:SetTextColor(unpack(c))
                     end
 
+                    MessageBox:LayoutContactRowPinIcon(row, ROW_HEIGHT)
                     if data.pinned then
                         row.pinIcon:Show()
                     else
@@ -1282,10 +1292,10 @@ function MessageBox:UpdateScrollViews()
 
                     row:SetHeight(ROW_HEIGHT)
                     row:SetPoint("TOPLEFT", MessageBox.conversationsScroll, "TOPLEFT", contactRowScrollX, -((i-1)*ROW_HEIGHT))
-                    row:SetWidth(contactRowWidth)
+                    row:SetWidth(convosRowWidth)
                     local textRight = data.pinned and 22 or 10
                     row.text:SetWidth(row:GetWidth() - textRight)
-                    MessageBox:SetContactRowSelectionHighlight(row, data.name, convosHighlightInset)
+                    MessageBox:SetContactRowSelectionHighlight(row, data.name)
                     row:Show()
                 else
                     row:Hide()

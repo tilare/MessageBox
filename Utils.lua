@@ -50,9 +50,10 @@ function MessageBox:GetPanelBackdropInnerWidth(frame)
     return frame:GetWidth() - left - right
 end
 
--- Inset for contact row selection highlight when the faux scroll list shows its vertical scrollbar.
+-- Width to reserve on the right when the faux scroll list shows its vertical scrollbar:
+-- shrink contact row buttons by this so clicks hit the scrollbar, not the row underneath.
 -- scrollbarWidth + 2 * (contactFrame right − scrollbar right), in UIParent space.
-function MessageBox:GetContactListScrollHighlightInset(scrollFrame, listSize, displayRowCount)
+function MessageBox:GetContactListScrollbarGutterWidth(scrollFrame, listSize, displayRowCount)
     if not scrollFrame or not listSize or not displayRowCount or listSize <= displayRowCount then
         return 0
     end
