@@ -152,22 +152,73 @@ function MessageBox:SkinScrollbar(frame)
 end
 
 function MessageBox:IsFriend(name)
+    if not name or name == "" then return false end
+    local lower = string.lower(name)
+    local nameShort = string.lower(MessageBox:PlayerNameWithoutRealm(name) or name)
     if MessageBox.friendSet then
-        return MessageBox.friendSet[string.lower(name)] or false
+        if MessageBox.friendSet[lower] or MessageBox.friendSet[nameShort] then return true end
     end
     for i = 1, GetNumFriends() do
         local fName = GetFriendInfo(i)
-        if fName and string.lower(fName) == string.lower(name) then
-            return true
+        if fName then
+            local fl = string.lower(fName)
+            local fShort = string.lower(MessageBox:PlayerNameWithoutRealm(fName) or fName)
+            if fl == lower or fl == nameShort or fShort == lower or fShort == nameShort then
+                return true
+            end
         end
     end
     return false
 end
 
+function MessageBox:NormalizeFriendConnected(raw)
+    if raw == nil then return nil end
+    if raw == false then return false end
+    if raw == true then return true end
+    local n = tonumber(raw)
+    if n == 0 then return false end
+    if n == 1 then return true end
+    return raw and true or false
+end
+
 function MessageBox:IsPlayerOnline(playerName)
-    if MessageBox.onlineStatus then
-        local status = MessageBox.onlineStatus[string.lower(playerName)]
-        if status ~= nil then return status end
+    if not playerName then return nil end
+    local lower = string.lower(playerName)
+    local shortLower = string.lower(MessageBox:PlayerNameWithoutRealm(playerName) or playerName)
+
+    for i = 1, GetNumFriends() do
+        local fname, _, _, _, connected = GetFriendInfo(i)
+        if fname then
+            local fLower = string.lower(fname)
+            local fShort = string.lower(MessageBox:PlayerNameWithoutRealm(fname) or fname)
+            if fLower == lower or fLower == shortLower or fShort == lower or fShort == shortLower then
+                if connected == nil then
+                    return false
+                end
+                return MessageBox:NormalizeFriendConnected(connected)
+            end
+        end
+    end
+    return nil
+end
+
+-- System messages use the server's form of the name; conversation keys may include a realm suffix.
+function MessageBox:ResolveConversationKey(serverReportedName)
+    if not serverReportedName or not self.conversations then return nil end
+    if self.conversations[serverReportedName] then return serverReportedName end
+    local reportedLower = string.lower(serverReportedName)
+    for contact, data in pairs(self.conversations) do
+        if data and data.messages and string.lower(contact) == reportedLower then
+            return contact
+        end
+    end
+    for contact, data in pairs(self.conversations) do
+        if data and data.messages then
+            local short = self:PlayerNameWithoutRealm(contact)
+            if short and string.lower(short) == reportedLower then
+                return contact
+            end
+        end
     end
     return nil
 end

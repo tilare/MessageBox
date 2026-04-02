@@ -66,7 +66,9 @@ end
 
 function MessageBox:WhoQueueDropOne()
     local k = next(MessageBox.whoPlayerQueue)
-    if k then MessageBox.whoPlayerQueue[k] = nil end
+    if k then
+        MessageBox.whoPlayerQueue[k] = nil
+    end
 end
 
 function MessageBox:AddToWhoQueue(name, callback)
@@ -237,6 +239,8 @@ function MessageBox:ProcessWhoQueue()
         if MessageBox:IsWhoCacheComplete(MessageBox.playerCache[name]) then
             table.insert(toRemove, name)
         elseif info.attempts >= MessageBox.WHO_MAX_ATTEMPTS then
+            table.insert(toRemove, name)
+        elseif MessageBox:IsPlayerOnline(name) == false then
             table.insert(toRemove, name)
         end
     end

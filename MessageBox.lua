@@ -195,15 +195,19 @@ function MessageBox:OnEvent(event)
         
     elseif event == "CHAT_MSG_SYSTEM" then
         local sysMessage = arg1
-        local _, _, playerName = string.find(sysMessage, "No player named '(.+)' is currently playing.")
-        
+        local _, _, playerName = string.find(sysMessage, "No player named '(.+)' is currently playing%.?")
+        if not playerName then
+            _, _, playerName = string.find(sysMessage, "No player named '(.+)' is online%.?")
+        end
+
         if playerName then
-            local convo = MessageBox.conversations[playerName]
+            local contactKey = MessageBox:ResolveConversationKey(playerName) or playerName
+            local convo = MessageBox.conversations[contactKey]
             if convo and convo.messages and MessageBox:GetCount(convo) > 0 then
                 local count = MessageBox:GetCount(convo)
                 if convo.outgoing[count] then
-                    MessageBox:RemoveLastMessage(playerName)
-                    MessageBox:AddSystemMessage(playerName, playerName .. " is offline.", true)
+                    MessageBox:RemoveLastMessage(contactKey)
+                    MessageBox:AddSystemMessage(contactKey, contactKey .. " is offline.", true)
                 end
             end
         end

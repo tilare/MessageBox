@@ -971,18 +971,20 @@ function MessageBox:UpdateContactList()
     local hideOffline = MessageBox.settings.hideOffline
     
     MessageBox.visibleFriends = {}
-    MessageBox.onlineStatus = {}
     MessageBox.friendSet = {}
     for i = 1, GetNumFriends() do
         local name, level, class, _, connected, status = GetFriendInfo(i)
         if name then
             local nameLower = string.lower(name)
-            MessageBox.onlineStatus[nameLower] = connected
+            local shortKey = MessageBox:PlayerNameWithoutRealm(name)
             MessageBox.friendSet[nameLower] = true
+            if shortKey and string.lower(shortKey) ~= nameLower then
+                MessageBox.friendSet[string.lower(shortKey)] = true
+            end
             
             local matchesSearch = (searchQuery == "") or string.find(nameLower, searchQuery)
             local showContact = matchesSearch
-            if hideOffline and not connected then showContact = false end
+            if hideOffline and MessageBox:NormalizeFriendConnected(connected) == false then showContact = false end
             
             if showContact then
                  if not MessageBox.playerCache[name] then MessageBox.playerCache[name] = {} end
