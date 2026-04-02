@@ -647,7 +647,7 @@ function MessageBox:ToggleNotificationMenu()
                 row.countText = countText
                 
                 row:SetScript("OnClick", function()
-                    MessageBox:SelectContact(this.contactName)
+                    MessageBox:SelectContact(this.contactName, true)
                     MessageBox:ShowFrame()
                     MessageBox.notificationList:Hide()
                 end)
@@ -774,7 +774,7 @@ function MessageBox:CreateNotificationPopup()
             end
             
             if table.getn(unreadList) == 1 then
-                MessageBox:SelectContact(unreadList[1])
+                MessageBox:SelectContact(unreadList[1], true)
                 MessageBox:ShowFrame()
             elseif table.getn(unreadList) > 1 then
                 MessageBox:ToggleNotificationMenu()

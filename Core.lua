@@ -38,7 +38,7 @@ MessageBox.chatSearchTerm = ""
 MessageBox.chatSearchResults = {}
 MessageBox.chatSearchCurrentIndex = 0
 
--- Defer whisper EditBox focus so keybinds/clicks that open the frame don't insert into input
+-- Defer whisper EditBox focus until after layout (SelectContact(..., true) only)
 MessageBox.pendingWhisperFocusFrames = nil
 
 -- Nampower crash-save state

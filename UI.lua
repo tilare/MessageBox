@@ -38,7 +38,7 @@ function MessageBox:CreateContactRow(parent)
         if arg1 == "RightButton" then
             MessageBox:OpenContextMenu(this.contactName)
         else
-            MessageBox:SelectContact(this.contactName)
+            MessageBox:SelectContact(this.contactName, true)
         end
     end)
     
@@ -1312,7 +1312,7 @@ function MessageBox:UpdateScrollViews()
     MessageBox:SkinScrollbar(MessageBoxConversationsScroll)
 end
 
-function MessageBox:SelectContact(contact)
+function MessageBox:SelectContact(contact, fromUserSelection)
     if not contact then return end
     
     -- Close search bar when switching contacts
@@ -1347,8 +1347,8 @@ function MessageBox:SelectContact(contact)
     MessageBox:UpdateContactList()
     
     MessageBox:UpdateChatHistory(unreadToPass)
-    
-    if MessageBox.whisperInput then
+
+    if fromUserSelection and MessageBox.whisperInput then
         MessageBox:ScheduleWhisperInputFocus()
     end
 
@@ -1498,7 +1498,6 @@ function MessageBox:ShowFrame()
         self:UpdateChatHistory()
         MessageBox:AddToWhoQueue(self.selectedContact)
     end
-    if self.whisperInput then self:ScheduleWhisperInputFocus() end
 end
 
 function MessageBox:HideFrame()
