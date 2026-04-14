@@ -139,59 +139,44 @@ function MessageBox:OnEvent(event)
     elseif event == "CHAT_MSG_WHISPER" then
         local message = arg1
         local sender = arg2
+        local contactKey = MessageBox:ResolveConversationKey(sender) or sender
         
         -- arg6 == "GM" means the sender is a Game Master
         if arg6 == "GM" then
-            if not MessageBox.playerCache[sender] then
-                MessageBox.playerCache[sender] = {}
+            if not MessageBox.playerCache[contactKey] then
+                MessageBox.playerCache[contactKey] = {}
             end
-            MessageBox.playerCache[sender].isGM = true
+            MessageBox.playerCache[contactKey].isGM = true
             -- Persist GM status
             if MessageBox.settings.gmList then
-                MessageBox.settings.gmList[sender] = true
+                MessageBox.settings.gmList[contactKey] = true
             end
         else
-            MessageBox:AddToWhoQueue(sender)
+            MessageBox:AddToWhoQueue(contactKey)
         end
         
-        MessageBox:AddMessage(sender, message, false)
+        MessageBox:AddMessage(contactKey, message, false)
 
     elseif event == "CHAT_MSG_WHISPER_INFORM" then
         local message = arg1
         local recipient = arg2
+        local contactKey = MessageBox:ResolveConversationKey(recipient) or recipient
         
         -- arg6 == "GM" means the recipient is a Game Master
         if arg6 == "GM" then
-            if not MessageBox.playerCache[recipient] then
-                MessageBox.playerCache[recipient] = {}
+            if not MessageBox.playerCache[contactKey] then
+                MessageBox.playerCache[contactKey] = {}
             end
-            MessageBox.playerCache[recipient].isGM = true
+            MessageBox.playerCache[contactKey].isGM = true
             -- Persist GM status so it survives reload/relog
             if MessageBox.settings.gmList then
-                MessageBox.settings.gmList[recipient] = true
+                MessageBox.settings.gmList[contactKey] = true
             end
         else
-            MessageBox:AddToWhoQueue(recipient) 
+            MessageBox:AddToWhoQueue(contactKey) 
         end
 
-        local convo = MessageBox.conversations[recipient]
-        if convo and convo.messages then
-            local count = MessageBox:GetCount(convo)
-            if count > 0 then
-                -- Strip color codes for comparison in case the server
-                -- returns a modified version (TurtleWoW GM whispers)
-                local storedMsg = string.gsub(convo.messages[count], "|c%x%x%x%x%x%x%x%x", "")
-                storedMsg = string.gsub(storedMsg, "|r", "")
-                local incomingMsg = string.gsub(message, "|c%x%x%x%x%x%x%x%x", "")
-                incomingMsg = string.gsub(incomingMsg, "|r", "")
-                
-                if convo.outgoing[count] and storedMsg == incomingMsg then
-                    return
-                end
-            end
-        end
-        
-        MessageBox:AddMessage(recipient, message, true)
+        MessageBox:AddMessage(contactKey, message, true)
         
     elseif event == "CHAT_MSG_SYSTEM" then
         local sysMessage = arg1

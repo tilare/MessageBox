@@ -220,6 +220,21 @@ function MessageBox:ResolveConversationKey(serverReportedName)
             end
         end
     end
+    -- Server may report "Name-Realm" while the conversation was keyed with the bare name (common when
+    -- another addon sends SendChatMessage using a fully qualified unit name). Prefer the stored key.
+    if string.find(serverReportedName, "-", 1, true) then
+        local reportedShort = self:PlayerNameWithoutRealm(serverReportedName)
+        if reportedShort then
+            local rsl = string.lower(reportedShort)
+            for contact, data in pairs(self.conversations) do
+                if data and data.messages then
+                    if not string.find(contact, "-", 1, true) and rsl == string.lower(contact) then
+                        return contact
+                    end
+                end
+            end
+        end
+    end
     return nil
 end
 
