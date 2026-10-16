@@ -271,13 +271,11 @@ function MessageBox:AddMessage(contact, message, isOutgoing)
     
     MessageBox.conversationOrderDirty = true
 
-    -- Mark crash save as needing a flush; throttled immediate flush
+    -- Crash save: append this message to the journal (cheap) instead of
+    -- re-serializing the whole history (PERF)
     MessageBox.crashSaveDirty = true
     if MessageBox.hasNampower then
-        local now = GetTime()
-        if (now - MessageBox.lastFlushTime) >= MessageBox.FLUSH_MIN_INTERVAL then
-            MessageBox:FlushToDisk()
-        end
+        MessageBox:JournalMessage(contact, message, c.times[c.count], isOutgoing, false)
     end
 
     -- Update popouts
@@ -340,6 +338,9 @@ function MessageBox:AddSystemMessage(contact, message, isTransient)
 
     -- Mark crash save as needing a flush
     MessageBox.crashSaveDirty = true
+    if MessageBox.hasNampower then
+        MessageBox:JournalMessage(contact, message, c.times[c.count], false, true)
+    end
 
     if self.detachedWindows[contact] and self.detachedWindows[contact]:IsVisible() then
         local win = self.detachedWindows[contact]
@@ -376,6 +377,10 @@ function MessageBox:RemoveLastMessage(contact)
         table.remove(c.outgoing)
         table.remove(c.system)
         c.count = count - 1
+        MessageBox.crashSaveDirty = true
+        if MessageBox.hasNampower then
+            MessageBox:JournalRemoveLast(contact)
+        end
     end
 
 end
