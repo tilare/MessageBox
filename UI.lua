@@ -530,6 +530,19 @@ function MessageBox:CreateFrame()
     end)
     MessageBox.conversationsScroll = convosScroll
 
+    -- Mouse wheel scrolls the lists row by row (default template scrolls by half a page,
+    -- which with a 1-row value step jumps many conversations at once)
+    local function ListMouseWheel()
+        local sb = getglobal(this:GetName() .. "ScrollBar")
+        if not sb then return end
+        local step = MessageBox.LIST_WHEEL_ROWS or 1
+        sb:SetValue(sb:GetValue() - (arg1 * step))
+    end
+    friendsScroll:EnableMouseWheel(true)
+    friendsScroll:SetScript("OnMouseWheel", ListMouseWheel)
+    convosScroll:EnableMouseWheel(true)
+    convosScroll:SetScript("OnMouseWheel", ListMouseWheel)
+
     local chatFrame = CreateFrame("Frame", nil, frame)
     chatFrame:SetPoint("TOPLEFT", contactFrame, "TOPRIGHT", 5, 0)
     chatFrame:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -15, 40)
@@ -686,6 +699,15 @@ function MessageBox:CreateFrame()
     MessageBox.chatLastRenderTime = 0
     
     chatHistory:SetScript("OnUpdate", function()
+        -- A conversation was just opened: once the window is actually visible,
+        -- snap to the last message (overrides any scroll reset that happened on show)
+        if MessageBox.pendingScrollToBottom then
+            local unread = MessageBox.pendingScrollToBottom.unread
+            MessageBox.pendingScrollToBottom = nil
+            MessageBox.chatRenderDirty = false
+            MessageBox:UpdateChatHistory(unread, true)
+            return
+        end
         if not MessageBox.chatRenderDirty then return end
         local now = GetTime()
         if (now - MessageBox.chatLastRenderTime) < MessageBox.RENDER_THROTTLE then return end
@@ -1247,7 +1269,8 @@ function MessageBox:SelectContact(contact)
     MessageBox:UpdateContactList()
     
     MessageBox:UpdateChatHistory(unreadToPass, true)
-    
+    MessageBox.pendingScrollToBottom = { unread = unreadToPass }
+
     if MessageBox.whisperInput then
         MessageBox.whisperInput:SetFocus()
     end
@@ -1374,13 +1397,30 @@ end
 function MessageBox:ShowFrame()
     if not self.frame then self:CreateFrame() end
     self.frame:Show()
-    self:HideNotificationPopup() 
+
+    -- Only hide the floating icon if there are no unread messages left;
+    -- otherwise keep it visible (with the updated count)
+    local remainingUnread = 0
+    for _, count in pairs(self.unreadCounts or {}) do
+        remainingUnread = remainingUnread + (tonumber(count) or 0)
+    end
+    if remainingUnread > 0 then
+        if self.notificationList then self.notificationList:Hide() end
+        self:UpdateMinimapBadge()
+    else
+        self:HideNotificationPopup()
+    end
+
     self:UpdateContactList()
     self:UpdateChatHeader()
 
-    if self.selectedContact then 
+    if self.selectedContact then
         self:UpdateChatHeader()
-        self:UpdateChatHistory() 
+        if self.pendingScrollToBottom then
+            self:UpdateChatHistory(self.pendingScrollToBottom.unread, true)
+        else
+            self:UpdateChatHistory()
+        end
     end
     if self.whisperInput then self.whisperInput:SetFocus() end
 end

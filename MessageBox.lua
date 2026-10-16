@@ -123,6 +123,17 @@ function MessageBox:OnEvent(event)
         MessageBox.searchQuery = "" 
         MessageBox:CreateMinimapButton()
 
+        -- Show the unread-messages icon again after a login / reload when there are
+        -- still unread whispers (originally it only appeared when a new whisper arrived)
+        local totalUnread = 0
+        for _, count in pairs(MessageBox.unreadCounts or {}) do
+            totalUnread = totalUnread + (tonumber(count) or 0)
+        end
+        if totalUnread > 0 and MessageBox.settings.popupNotificationsEnabled then
+            MessageBox:CreateNotificationPopup()
+            MessageBox:UpdateMinimapBadge()
+        end
+
     elseif event == "CHAT_MSG_WHISPER" then
         local message = arg1
         local sender = arg2
