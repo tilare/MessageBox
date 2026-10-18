@@ -48,9 +48,13 @@ function MessageBox:OnLoad()
         -- Periodic crash save flush
         if MessageBox.hasNampower then
             MessageBox.flushElapsed = (MessageBox.flushElapsed or 0) + 1
-            if MessageBox.flushElapsed >= MessageBox.FLUSH_INTERVAL then
+            -- full snapshot: rarely, and never in combat (PERF, modif. locale)
+            if MessageBox.flushElapsed >= MessageBox.FLUSH_INTERVAL
+               and not UnitAffectingCombat("player") then
                 MessageBox.flushElapsed = 0
-                if MessageBox.crashSaveDirty then
+                -- messages are already safe in the journal: a full snapshot is
+                -- only needed to keep the journal short
+                if MessageBox.crashSaveDirty and (MessageBox.journalCount or 0) >= MessageBox.JOURNAL_MAX then
                     MessageBox:FlushToDisk()
                 end
             end
@@ -122,6 +126,17 @@ function MessageBox:OnEvent(event)
 
         MessageBox.searchQuery = "" 
         MessageBox:CreateMinimapButton()
+
+        -- Show the unread-messages icon again after a login / reload when there are
+        -- still unread whispers (originally it only appeared when a new whisper arrived)
+        local totalUnread = 0
+        for _, count in pairs(MessageBox.unreadCounts or {}) do
+            totalUnread = totalUnread + (tonumber(count) or 0)
+        end
+        if totalUnread > 0 and MessageBox.settings.popupNotificationsEnabled then
+            MessageBox:CreateNotificationPopup()
+            MessageBox:UpdateMinimapBadge()
+        end
 
     elseif event == "CHAT_MSG_WHISPER" then
         local message = arg1
@@ -228,7 +243,8 @@ function MessageBox:OnEvent(event)
         end
     
     elseif event == "PLAYER_LOGOUT" then
-        MessageBox:FlushToDisk()
+        -- SavedVariables are written by the game right after: no snapshot needed
+        -- (the old FlushToDisk here was immediately overwritten by "CLEAN")
         MessageBox:WriteCrashSaveClean()
     end
 end

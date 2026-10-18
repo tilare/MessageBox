@@ -28,8 +28,9 @@ MessageBox.chatSearchCurrentIndex = 0
 
 -- Nampower crash-save state
 MessageBox.hasNampower = false
-MessageBox.FLUSH_INTERVAL = 60      -- seconds between periodic auto-saves
-MessageBox.FLUSH_MIN_INTERVAL = 10  -- minimum seconds between event-triggered flushes
+MessageBox.FLUSH_INTERVAL = 300     -- seconds between snapshot checks (perf: was 60)
+MessageBox.JOURNAL_MAX = 300        -- full snapshot only once the journal holds this many entries
+MessageBox.FLUSH_MIN_INTERVAL = 10  -- (unused since the journal: kept for compatibility)
 MessageBox.flushElapsed = 0
 MessageBox.lastFlushTime = 0
 MessageBox.crashSaveDirty = false
@@ -275,63 +276,56 @@ MessageBox.themes = {
 }
 
 -- Nampower Crash-Save: Serialization & File I/O
-function MessageBox:SerializeValue(val, indent)
+--
+-- PERF (modif. locale) : l'ancienne version re-serialisait TOUT l'historique
+-- a chaque chuchotement (plusieurs Mo de chaines => gel de 100 ms et plus).
+-- Desormais :
+--   * chaque message est AJOUTE a un petit journal (WriteCustomFile mode "a") ;
+--   * l'instantane complet n'est ecrit que toutes les 5 min, hors combat ;
+--   * la serialisation remplit un seul buffer (pas de chaines imbriquees).
+-- Recuperation apres crash : instantane (s'il existe) + rejeu du journal.
+
+local function SerializeInto(buf, n, val)
     local t = type(val)
     if t == "string" then
-        return string.format("%q", val)
+        n = n + 1; buf[n] = string.format("%q", val)
     elseif t == "number" then
-        return tostring(val)
+        n = n + 1; buf[n] = tostring(val)
     elseif t == "boolean" then
-        return val and "true" or "false"
+        n = n + 1; buf[n] = val and "true" or "false"
     elseif t == "table" then
-        return self:SerializeTable(val, indent)
+        n = n + 1; buf[n] = "{"
+        local arrayLen = table.getn(val)
+        for i = 1, arrayLen do
+            n = SerializeInto(buf, n, val[i])
+            n = n + 1; buf[n] = ","
+        end
+        for k, v in pairs(val) do
+            local kt = type(k)
+            local isArrayKey = (kt == "number" and k >= 1 and k <= arrayLen and math.floor(k) == k)
+            if not isArrayKey and (kt == "string" or kt == "number" or kt == "boolean") then
+                n = n + 1; buf[n] = "["
+                n = SerializeInto(buf, n, k)
+                n = n + 1; buf[n] = "]="
+                n = SerializeInto(buf, n, v)
+                n = n + 1; buf[n] = ","
+            end
+        end
+        n = n + 1; buf[n] = "}"
     else
-        return "nil"
+        n = n + 1; buf[n] = "nil"
     end
+    return n
+end
+
+function MessageBox:SerializeValue(val, indent)
+    local buf = {}
+    local n = SerializeInto(buf, 0, val)
+    return table.concat(buf, "", 1, n)
 end
 
 function MessageBox:SerializeTable(tbl, indent)
-    indent = indent or 1
-    local pad = string.rep(" ", indent * 2)
-    local padClose = string.rep(" ", (indent - 1) * 2)
-    local parts = {}
-    local partCount = 0
-
-    local arrayLen = table.getn(tbl)
-
-    for i = 1, arrayLen do
-        partCount = partCount + 1
-        parts[partCount] = pad .. self:SerializeValue(tbl[i], indent + 1)
-    end
-
-    for k, v in pairs(tbl) do
-        local isArrayKey = (type(k) == "number" and k >= 1 and k <= arrayLen and math.floor(k) == k)
-        if not isArrayKey then
-            local keyStr
-            if type(k) == "string" then
-                if string.find(k, "^[%a_][%w_]*$") then
-                    keyStr = k
-                else
-                    keyStr = "[" .. string.format("%q", k) .. "]"
-                end
-            elseif type(k) == "number" then
-                keyStr = "[" .. tostring(k) .. "]"
-            elseif type(k) == "boolean" then
-                keyStr = "[" .. (k and "true" or "false") .. "]"
-            else
-                keyStr = nil
-            end
-            if keyStr then
-                partCount = partCount + 1
-                parts[partCount] = pad .. keyStr .. " = " .. self:SerializeValue(v, indent + 1)
-            end
-        end
-    end
-
-    if partCount == 0 then
-        return "{}"
-    end
-    return "{\n" .. table.concat(parts, ",\n") .. "\n" .. padClose .. "}"
+    return self:SerializeValue(tbl, indent)
 end
 
 function MessageBox:Serialize(data)
@@ -359,7 +353,41 @@ function MessageBox:GetCrashSaveFilename()
     return "MessageBox_" .. name .. ".dat"
 end
 
--- Write current session data to disk via Nampower
+function MessageBox:GetJournalFilename()
+    local name = UnitName("player") or "Unknown"
+    return "MessageBox_" .. name .. "_journal.dat"
+end
+
+local JOURNAL_HEADER = "-- MessageBox journal\n"
+
+-- Empty the journal (after a snapshot or a clean exit)
+function MessageBox:ResetJournal()
+    if not self.hasNampower then return end
+    pcall(WriteCustomFile, self:GetJournalFilename(), JOURNAL_HEADER)
+    self.journalHasData = false
+    self.journalCount = 0
+end
+
+-- Append one operation to the journal: a few hundred bytes, no snapshot
+function MessageBox:JournalAppend(line)
+    if not self.hasNampower then return end
+    local ok = pcall(WriteCustomFile, self:GetJournalFilename(), line .. "\n", "a")
+    if ok then
+        self.journalHasData = true
+        self.journalCount = (self.journalCount or 0) + 1
+    end
+end
+
+function MessageBox:JournalMessage(contact, message, t, isOutgoing, isSystem)
+    self:JournalAppend(string.format("J(%q,%q,%d,%s,%s)", contact, message, t or 0,
+        isOutgoing and "true" or "false", isSystem and "true" or "false"))
+end
+
+function MessageBox:JournalRemoveLast(contact)
+    self:JournalAppend(string.format("R(%q)", contact))
+end
+
+-- Write a full snapshot to disk via Nampower (expensive: called rarely)
 function MessageBox:FlushToDisk()
     if not self.hasNampower then return end
 
@@ -379,11 +407,14 @@ function MessageBox:FlushToDisk()
     local writeOk, writeErr = pcall(function()
         WriteCustomFile(self:GetCrashSaveFilename(), serialized)
     end)
+    serialized = nil
     if not writeOk then
         DEFAULT_CHAT_FRAME:AddMessage("|cff3cb7f0Message|rBox: Crash-save write failed: " .. (writeErr or "unknown"))
         return
     end
 
+    -- the snapshot now contains everything: the journal can be emptied
+    self:ResetJournal()
     self.lastFlushTime = GetTime()
     self.crashSaveDirty = false
 end
@@ -394,6 +425,53 @@ function MessageBox:WriteCrashSaveClean()
     pcall(function()
         WriteCustomFile(self:GetCrashSaveFilename(), "CLEAN")
     end)
+    self:ResetJournal()
+end
+
+-- Replays the journal on top of the current data. Returns the number of operations.
+function MessageBox:ReplayJournal()
+    local raw = nil
+    local exists = false
+    pcall(function() exists = CustomFileExists(self:GetJournalFilename()) end)
+    if not exists then return 0 end
+    pcall(function() raw = ReadCustomFile(self:GetJournalFilename()) end)
+    if not raw or raw == "" or raw == JOURNAL_HEADER then return 0 end
+
+    local func = loadstring(raw)
+    if not func then
+        DEFAULT_CHAT_FRAME:AddMessage("|cff3cb7f0Message|rBox: journal illisible, ignore.")
+        return 0
+    end
+    local n = 0
+    local convs = MessageBoxDB
+    local unread = self.unreadCounts
+    local env = {
+        J = function(contact, message, t, isOutgoing, isSystem)
+            if not convs[contact] then convs[contact] = MessageBox:NewConversation() end
+            local c = convs[contact]
+            table.insert(c.messages, message)
+            table.insert(c.times, t)
+            table.insert(c.outgoing, isOutgoing)
+            table.insert(c.system, isSystem)
+            c.count = table.getn(c.messages)
+            if unread and not isOutgoing and not isSystem then
+                unread[contact] = (unread[contact] or 0) + 1
+            end
+            n = n + 1
+        end,
+        R = function(contact)
+            local c = convs[contact]
+            if c and table.getn(c.messages) > 0 then
+                table.remove(c.messages); table.remove(c.times)
+                table.remove(c.outgoing); table.remove(c.system)
+                c.count = table.getn(c.messages)
+            end
+            n = n + 1
+        end,
+    }
+    setfenv(func, env)
+    pcall(func)
+    return n
 end
 
 -- Attempt to recover data from a crash save file
@@ -401,43 +479,49 @@ end
 function MessageBox:AttemptCrashRecovery()
     if not self.hasNampower then return false end
 
+    local recoveredSnapshot = false
     local filename = self:GetCrashSaveFilename()
 
     local exists = false
     pcall(function() exists = CustomFileExists(filename) end)
-    if not exists then return false end
-
-    local raw = nil
-    local readOk, readErr = pcall(function() raw = ReadCustomFile(filename) end)
-    if not readOk or not raw then return false end
-
-    -- no recovery needed
-    if raw == "CLEAN" then return false end
-
-    local recovered = self:Deserialize(raw)
-    if not recovered or not recovered.saveTime then return false end
-
-    -- Recovery: the crash save file had real data, meaning last session did not exit cleanly. Use the crash save data.
-    if recovered.conversations then
-        MessageBoxDB = recovered.conversations
-        self.conversations = MessageBoxDB
-    end
-
-    if recovered.unreadCounts then
-        if self.settings then
-            self.settings.unreadCounts = recovered.unreadCounts
+    if exists then
+        local raw = nil
+        local readOk = pcall(function() raw = ReadCustomFile(filename) end)
+        if readOk and raw and raw ~= "CLEAN" then
+            local recovered = self:Deserialize(raw)
+            raw = nil
+            if recovered and recovered.saveTime then
+                -- Recovery: the crash save file had real data, meaning last session did not exit cleanly.
+                if recovered.conversations then
+                    MessageBoxDB = recovered.conversations
+                    self.conversations = MessageBoxDB
+                end
+                if recovered.unreadCounts then
+                    if self.settings then
+                        self.settings.unreadCounts = recovered.unreadCounts
+                    end
+                    self.unreadCounts = recovered.unreadCounts
+                end
+                if recovered.settings then
+                    -- Merge recovered settings on top of current settings.
+                    for key, value in pairs(recovered.settings) do
+                        MessageBoxSettings[key] = value
+                    end
+                    self.settings = MessageBoxSettings
+                    self.unreadCounts = self.settings.unreadCounts
+                end
+                recoveredSnapshot = true
+            end
         end
-        self.unreadCounts = recovered.unreadCounts
     end
 
-    if recovered.settings then
-        -- Merge recovered settings on top of current settings.
-        for key, value in pairs(recovered.settings) do
-            MessageBoxSettings[key] = value
-        end
-        self.settings = MessageBoxSettings
-        self.unreadCounts = self.settings.unreadCounts
+    -- Messages received after the last snapshot (or since the last clean exit)
+    local replayed = self:ReplayJournal()
+    if replayed > 0 then
+        DEFAULT_CHAT_FRAME:AddMessage("|cff3cb7f0Message|rBox: " .. replayed .. " element(s) du journal recupere(s) apres un crash.")
+        -- consolidate once so that a second crash does not replay twice
+        self:FlushToDisk()
     end
 
-    return true
+    return recoveredSnapshot or replayed > 0
 end
